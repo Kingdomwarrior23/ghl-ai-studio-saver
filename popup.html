@@ -147,6 +147,89 @@
   .schema-item:hover { border-color: #8bc34a; }
   .schema-item .type { color: #ff9800; font-weight: 700; }
 
+  .repo-picker {
+    margin-top: 12px;
+    background: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 12px;
+    display: none;
+  }
+  .repo-picker.show { display: block; }
+  .repo-picker h3 { font-size: 13px; color: #4fc3f7; margin-bottom: 10px; }
+  .repo-search {
+    width: 100%;
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: #e0e0e0;
+    font-size: 12px;
+    margin-bottom: 8px;
+    outline: none;
+  }
+  .repo-search:focus { border-color: #667eea; }
+  .repo-list {
+    max-height: 180px;
+    overflow-y: auto;
+    margin-bottom: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: #333 transparent;
+  }
+  .repo-item {
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid transparent;
+  }
+  .repo-item:hover { background: #252525; }
+  .repo-item--last { border-color: #667eea !important; margin-bottom: 4px; }
+  .repo-name { color: #e0e0e0; }
+  .repo-badge { font-size: 10px; color: #667eea; font-weight: 600; }
+  .repo-vis { font-size: 10px; color: #555; }
+  .repo-empty { color: #555; font-size: 12px; padding: 8px; }
+  .repo-divider { border: none; border-top: 1px solid #2a2a2a; margin: 8px 0; }
+  .repo-new-row { display: flex; gap: 6px; }
+  .repo-new-input {
+    flex: 1;
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: #e0e0e0;
+    font-size: 12px;
+    outline: none;
+  }
+  .repo-new-input:focus { border-color: #4caf50; }
+  .btn-create {
+    background: #4caf50;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-create:hover { background: #388e3c; }
+  .btn-cancel-picker {
+    width: 100%;
+    margin-top: 8px;
+    background: transparent;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    padding: 6px;
+    color: #666;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .btn-cancel-picker:hover { background: #1e1e1e; color: #aaa; }
+
   .footer {
     padding: 12px 20px;
     border-top: 1px solid #222;
@@ -196,6 +279,20 @@
   <div class="schemas-preview" id="schemasPreview">
     <h3>🔍 Structured Data Found</h3>
     <div id="schemasList"></div>
+  </div>
+
+  <div class="repo-picker" id="repoPicker">
+    <h3>Push to GitHub — Select Repo</h3>
+    <input type="text" class="repo-search" id="repoSearch" placeholder="Search your repos..." autocomplete="off" spellcheck="false">
+    <div class="repo-list" id="repoList">
+      <div class="repo-empty">Loading...</div>
+    </div>
+    <hr class="repo-divider">
+    <div class="repo-new-row">
+      <input type="text" class="repo-new-input" id="newRepoName" placeholder="Create new repo...">
+      <button class="btn-create" id="btnCreateNewRepo">+ Create</button>
+    </div>
+    <button class="btn-cancel-picker" id="btnCancelPicker">Cancel</button>
   </div>
 </div>
 

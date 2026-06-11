@@ -315,38 +315,116 @@ function toBase64(str) {
   return btoa(binary);
 }
 
+// ── Repo Picker ──────────────────────────────────────────
+async function fetchUserRepos(token) {
+  const resp = await fetch(
+    "https://api.github.com/user/repos?sort=updated&per_page=100&affiliation=owner",
+    { headers: { Authorization: `token ${token}`, Accept: "application/vnd.github.v3+json" } }
+  );
+  if (!resp.ok) throw new Error("Failed to fetch repos (" + resp.status + ")");
+  return resp.json();
+}
+
+function showRepoPicker(token, repos, lastRepo) {
+  const picker = document.getElementById("repoPicker");
+  const listEl = document.getElementById("repoList");
+  const searchEl = document.getElementById("repoSearch");
+
+  function renderList(filter) {
+    const q = (filter || "").toLowerCase();
+    const filtered = repos.filter(r => !q || r.full_name.toLowerCase().includes(q));
+    let html = "";
+
+    // Last-used pinned at top (only when not filtering)
+    if (!q && lastRepo) {
+      html += `<div class="repo-item repo-item--last" data-repo="${lastRepo}">
+        <span class="repo-name">${lastRepo}</span>
+        <span class="repo-badge">last used</span>
+      </div>`;
+    }
+
+    filtered.forEach(r => {
+      if (!q && r.full_name === lastRepo) return; // already pinned
+      html += `<div class="repo-item" data-repo="${r.full_name}">
+        <span class="repo-name">${r.full_name}</span>
+        <span class="repo-vis">${r.private ? "private" : "public"}</span>
+      </div>`;
+    });
+
+    if (!html) html = '<div class="repo-empty">No repos found</div>';
+    listEl.innerHTML = html;
+
+    listEl.querySelectorAll(".repo-item").forEach(el => {
+      el.addEventListener("click", () => {
+        hidePicker();
+        doPush(token, el.dataset.repo);
+      });
+    });
+  }
+
+  renderList("");
+  searchEl.value = "";
+  searchEl.addEventListener("input", () => renderList(searchEl.value));
+  picker.classList.add("show");
+  setTimeout(() => searchEl.focus(), 50);
+
+  document.getElementById("btnCreateNewRepo").onclick = () => {
+    const name = document.getElementById("newRepoName").value.trim();
+    if (!name) { document.getElementById("newRepoName").focus(); return; }
+    hidePicker();
+    doPush(token, name); // doPush auto-creates if repo doesn't exist
+  };
+
+  document.getElementById("newRepoName").onkeydown = (e) => {
+    if (e.key === "Enter") document.getElementById("btnCreateNewRepo").click();
+  };
+
+  document.getElementById("btnCancelPicker").onclick = hidePicker;
+}
+
+function hidePicker() {
+  document.getElementById("repoPicker").classList.remove("show");
+}
+
 // ── GitHub Push ──────────────────────────────────────────
 async function pushToGitHub() {
   if (!projectData) return;
 
-  // Get GitHub token from storage
-  const { githubToken, githubRepo } = await chrome.storage.local.get(["githubToken", "githubRepo"]);
+  let { githubToken } = await chrome.storage.local.get(["githubToken"]);
 
   if (!githubToken) {
-    const token = prompt("Enter your GitHub Personal Access Token:");
-    if (!token) return;
-    const repo = prompt("Enter repo (e.g. username/repo-name):", "mitchellcgutters-site");
-    if (!repo) return;
-    await chrome.storage.local.set({ githubToken: token, githubRepo: repo });
-    return pushToGitHub(); // Retry with saved token
+    githubToken = prompt("Enter your GitHub Personal Access Token:");
+    if (!githubToken) return;
+    await chrome.storage.local.set({ githubToken });
   }
 
-  let repo = githubRepo || prompt("Enter repo (e.g. username/repo-name):");
-  if (!repo) return;
+  setStatus("Loading your repositories...", "grabbing");
+  try {
+    const [repos, { githubRepo: lastRepo }] = await Promise.all([
+      fetchUserRepos(githubToken),
+      chrome.storage.local.get(["githubRepo"]),
+    ]);
+    showRepoPicker(githubToken, repos, lastRepo || null);
+    setStatus("Select a repo to push to", "ready");
+  } catch (err) {
+    setStatus("Error loading repos: " + err.message, "error");
+  }
+}
 
-  // Auto-resolve: if repo is just a name (no slash), fetch the username
+async function doPush(githubToken, repo) {
+  // Auto-qualify bare repo names with the authenticated username
   if (!repo.includes("/")) {
-    setStatus("Looking up GitHub username...", "grabbing");
+    setStatus("Resolving username...", "grabbing");
     const userResp = await fetch("https://api.github.com/user", {
       headers: { Authorization: `token ${githubToken}`, Accept: "application/vnd.github.v3+json" },
     });
     if (userResp.ok) {
-      const userInfo = await userResp.json();
-      repo = `${userInfo.login}/${repo}`;
-      // Save the full path for next time
-      await chrome.storage.local.set({ githubRepo: repo });
+      const { login } = await userResp.json();
+      repo = `${login}/${repo}`;
     }
   }
+
+  await chrome.storage.local.set({ githubRepo: repo });
 
   const btn = document.getElementById("btnGitHub");
   btn.disabled = true;
