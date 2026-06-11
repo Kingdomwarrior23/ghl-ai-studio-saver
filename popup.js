@@ -303,6 +303,18 @@ ${projectData.schemas ? projectData.schemas.map((s) => `- @${s.type}`).join("\n"
   }
 }
 
+// ── Helpers ──────────────────────────────────────────────
+// btoa(unescape(encodeURIComponent())) breaks on large or unicode-heavy HTML.
+// TextEncoder → binary string → btoa is correct for all content.
+function toBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
 // ── GitHub Push ──────────────────────────────────────────
 async function pushToGitHub() {
   if (!projectData) return;
@@ -486,7 +498,7 @@ async function pushToGitHub() {
           message: sha
             ? `GHL Saver: update ${file.path}`
             : `GHL Saver: add ${file.path}`,
-          content: btoa(unescape(encodeURIComponent(file.content))),
+          content: toBase64(file.content),
           branch: defaultBranch,
           ...(sha && { sha }),
         };

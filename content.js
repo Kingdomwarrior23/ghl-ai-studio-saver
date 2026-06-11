@@ -51,11 +51,25 @@
     const hasHeadings = doc.querySelectorAll("h1,h2,h3,h4,h5,h6").length;
     const hasNav = doc.querySelectorAll("nav, [class*='nav']").length;
 
-    data.contentScore = bodyLen > 1000 ? bodyLen / 1000 : 0
+    // Parentheses required — ternary has lower precedence than + so without them
+    // the bonus terms only apply in the else branch (bodyLen <= 1000), never in practice.
+    data.contentScore = (bodyLen > 1000 ? bodyLen / 1000 : 0)
       + hasSections * 5
       + hasImages * 3
       + hasHeadings * 2
       + hasNav * 2;
+
+    // Detect and hard-penalize the GHL Vibe builder shell.
+    // The builder UI is a React app wrapping an iframe — capturing it gives us
+    // the editor chrome, not the actual site. Score -999 so it's always last.
+    const isVibeBuilderShell = !!(
+      doc.querySelector('[data-testid="builder-view"]') ||
+      doc.querySelector('[data-testid="top-nav-bar"]') ||
+      doc.querySelector('[data-v-b3a7a1a6]') // Vue SFC attr unique to the Vibe banner component
+    );
+    if (isVibeBuilderShell) {
+      data.contentScore = -999;
+    }
 
     // ── 1. Full rendered HTML ────────────────────────────
     data.fullHtml = doc.documentElement.outerHTML;
