@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<body>
+<canvas id="c"></canvas>
+<script>
+// Generate simple icons and save as data URLs
+function generateIcon(size) {
+  const c = document.getElementById("c");
+  c.width = size;
+  c.height = size;
+  const ctx = c.getContext("2d");
+
+  // Background
+  const grad = ctx.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, "#667eea");
+  grad.addColorStop(1, "#764ba2");
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.roundRect(0, 0, size, size, size * 0.15);
+  ctx.fill();
+
+  // Box icon
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = size * 0.06;
+  ctx.lineCap = "round";
+  const m = size * 0.25;
+  const w = size - m * 2;
+  const h = size * 0.35;
+  const y = size * 0.3;
+  ctx.strokeRect(m, y, w, h);
+
+  // Lid
+  ctx.beginPath();
+  ctx.moveTo(m - size * 0.05, y);
+  ctx.lineTo(m + w + size * 0.05, y);
+  ctx.stroke();
+
+  // Arrow down
+  const ax = size / 2;
+  const ay = y + h + size * 0.08;
+  ctx.beginPath();
+  ctx.moveTo(ax, ay);
+  ctx.lineTo(ax, ay + size * 0.15);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(ax - size * 0.08, ay + size * 0.1);
+  ctx.lineTo(ax, ay + size * 0.18);
+  ctx.lineTo(ax + size * 0.08, ay + size * 0.1);
+  ctx.stroke();
+
+  return c.toDataURL("image/png");
+}
+
+// Output for manual download
+[16, 48, 128].forEach(size => {
+  const a = document.createElement("a");
+  a.href = generateIcon(size);
+  a.download = `icon${size}.png`;
+  document.body.appendChild(a);
+  a.click();
+});
+</script>
+</body>
+</html>

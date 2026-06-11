@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 420px;
+    max-height: 580px;
+    overflow-y: auto;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0f0f0f;
+    color: #e0e0e0;
+    padding: 0;
+  }
+  .header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    padding: 16px 20px;
+    border-bottom: 1px solid #2a2a4a;
+  }
+  .header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .header h1 .icon { font-size: 22px; }
+  .header p {
+    font-size: 12px;
+    color: #888;
+    margin-top: 4px;
+  }
+  .content { padding: 16px 20px; }
+
+  .status-bar {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    font-size: 12px;
+    color: #aaa;
+    min-height: 60px;
+  }
+  .status-bar .label { color: #666; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .status-bar .url { color: #4fc3f7; word-break: break-all; }
+  .status-bar.ready { border-color: #4fc3f7; }
+  .status-bar.grabbing { border-color: #ff9800; }
+  .status-bar.done { border-color: #4caf50; }
+  .status-bar.error { border-color: #f44336; }
+
+  .btn-group { display: flex; flex-direction: column; gap: 8px; }
+  .btn {
+    width: 100%;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.15s;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+  }
+  .btn-primary:hover { background: linear-gradient(135deg, #764ba2, #667eea); }
+
+  .btn-secondary {
+    background: #1a1a2e;
+    color: #ccc;
+    border: 1px solid #333;
+  }
+  .btn-secondary:hover { background: #222; border-color: #555; }
+
+  .btn-github {
+    background: #238636;
+    color: #fff;
+  }
+  .btn-github:hover { background: #2ea043; }
+
+  .results {
+    margin-top: 16px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 12px;
+    display: none;
+  }
+  .results.show { display: block; }
+  .results h3 { font-size: 13px; color: #4fc3f7; margin-bottom: 8px; }
+  .results .item {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 12px;
+    border-bottom: 1px solid #222;
+  }
+  .results .item:last-child { border: none; }
+  .results .item .count { color: #4caf50; font-weight: 600; }
+  .results .item .label { color: #999; }
+
+  .progress {
+    height: 3px;
+    background: #222;
+    border-radius: 2px;
+    margin-top: 12px;
+    overflow: hidden;
+    display: none;
+  }
+  .progress.show { display: block; }
+  .progress .bar {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.3s;
+  }
+
+  .schemas-preview {
+    margin-top: 12px;
+    display: none;
+  }
+  .schemas-preview.show { display: block; }
+  .schemas-preview h3 { font-size: 13px; color: #ff9800; margin-bottom: 8px; }
+  .schema-item {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 8px;
+    margin-bottom: 6px;
+    font-size: 11px;
+    font-family: monospace;
+    color: #8bc34a;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .schema-item:hover { border-color: #8bc34a; }
+  .schema-item .type { color: #ff9800; font-weight: 700; }
+
+  .footer {
+    padding: 12px 20px;
+    border-top: 1px solid #222;
+    font-size: 10px;
+    color: #555;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span class="icon">📦</span> GHL Project Saver</h1>
+  <p>Grab everything from GoHighLevel AI Studio</p>
+</div>
+
+<div class="content">
+  <div class="status-bar ready" id="status">
+    <div class="label">Current Page</div>
+    <div class="url" id="currentUrl">Loading...</div>
+  </div>
+
+  <div class="btn-group">
+    <button class="btn btn-primary" id="btnGrab">
+      📥 Grab Full Project
+    </button>
+    <button class="btn btn-secondary" id="btnSchemas">
+      🔍 Preview Schemas Only
+    </button>
+    <button class="btn btn-secondary" id="btnDownload" disabled>
+      💾 Download ZIP
+    </button>
+    <button class="btn btn-github" id="btnGitHub" disabled>
+      🐙 Push to GitHub
+    </button>
+  </div>
+
+  <div class="progress" id="progress">
+    <div class="bar" id="progressBar"></div>
+  </div>
+
+  <div class="results" id="results">
+    <h3>📊 Captured</h3>
+    <div id="resultsList"></div>
+  </div>
+
+  <div class="schemas-preview" id="schemasPreview">
+    <h3>🔍 Structured Data Found</h3>
+    <div id="schemasList"></div>
+  </div>
+</div>
+
+<div class="footer">
+  GHL Saver v1.0 &mdash; by IgnitivIO
+</div>
+
+<script src="lib/jszip.min.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>
