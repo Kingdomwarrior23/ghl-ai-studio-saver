@@ -556,46 +556,82 @@ async function doPush(githubToken, repo) {
       setStatus(`Pushed ${files.length} files to ${repo} (initial commit)`, "done");
 
     } else {
-      // ── EXISTING REPO: Use Contents API (one file at a time) ──
+      // ── EXISTING REPO: Git Data API (tree → commit → fast-forward ref) ──
+      // Contents API breaks on files >1MB because it can't fetch the required
+      // blob SHA, causing a "does not match" rejection on update. The Git Data
+      // API bypasses that entirely — no per-file SHA needed.
       setStatus(`Pushing to ${defaultBranch}...`, "grabbing");
-      let pushed = 0;
 
-      for (const file of files) {
-        // Check if file already exists (need SHA for update)
-        let sha = null;
-        const checkResp = await fetch(
-          `https://api.github.com/repos/${repo}/contents/${file.path}?ref=${defaultBranch}`,
-          { headers }
-        );
-        if (checkResp.ok) {
-          const existing = await checkResp.json();
-          sha = existing.sha;
-        }
+      // 1. Get current branch tip
+      const refResp = await fetch(
+        `https://api.github.com/repos/${repo}/git/ref/heads/${defaultBranch}`,
+        { headers }
+      );
+      if (!refResp.ok) {
+        const err = await refResp.json();
+        throw new Error("Failed to get branch ref: " + err.message);
+      }
+      const currentCommitSha = (await refResp.json()).object.sha;
+      setProgress(25);
 
-        const body = {
-          message: sha
-            ? `GHL Saver: update ${file.path}`
-            : `GHL Saver: add ${file.path}`,
-          content: toBase64(file.content),
-          branch: defaultBranch,
-          ...(sha && { sha }),
-        };
+      // 2. Get base tree SHA from current commit
+      const baseCommitResp = await fetch(
+        `https://api.github.com/repos/${repo}/git/commits/${currentCommitSha}`,
+        { headers }
+      );
+      if (!baseCommitResp.ok) throw new Error("Failed to read current commit");
+      const baseTreeSha = (await baseCommitResp.json()).tree.sha;
+      setProgress(35);
 
-        const resp = await fetch(`https://api.github.com/repos/${repo}/contents/${file.path}`, {
-          method: "PUT",
+      // 3. Create new tree on top of existing (base_tree preserves unmodified files)
+      const newTreeResp = await fetch(`https://api.github.com/repos/${repo}/git/trees`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          base_tree: baseTreeSha,
+          tree: files.map(f => ({ path: f.path, mode: "100644", type: "blob", content: f.content })),
+        }),
+      });
+      if (!newTreeResp.ok) {
+        const err = await newTreeResp.json();
+        throw new Error("Failed to create tree: " + (err.message || JSON.stringify(err)));
+      }
+      const newTreeSha = (await newTreeResp.json()).sha;
+      setProgress(65);
+
+      // 4. Create commit with parent
+      const newCommitResp = await fetch(`https://api.github.com/repos/${repo}/git/commits`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          message: `GHL Saver: update export of ${projectData.pageTitle || "project"}`,
+          tree: newTreeSha,
+          parents: [currentCommitSha],
+        }),
+      });
+      if (!newCommitResp.ok) {
+        const err = await newCommitResp.json();
+        throw new Error("Failed to create commit: " + (err.message || JSON.stringify(err)));
+      }
+      const newCommitSha = (await newCommitResp.json()).sha;
+      setProgress(85);
+
+      // 5. Fast-forward branch ref
+      const updateRefResp = await fetch(
+        `https://api.github.com/repos/${repo}/git/refs/heads/${defaultBranch}`,
+        {
+          method: "PATCH",
           headers,
-          body: JSON.stringify(body),
-        });
-
-        if (!resp.ok) {
-          const err = await resp.json();
-          throw new Error(`Failed to push ${file.path}: ${err.message}`);
+          body: JSON.stringify({ sha: newCommitSha }),
         }
-        pushed++;
-        setProgress(Math.round((pushed / files.length) * 100));
+      );
+      if (!updateRefResp.ok) {
+        const err = await updateRefResp.json();
+        throw new Error("Failed to update branch: " + (err.message || JSON.stringify(err)));
       }
 
-      setStatus(`Pushed ${pushed} files to ${repo}`, "done");
+      setProgress(100);
+      setStatus(`Pushed ${files.length} files to ${repo}`, "done");
     }
 
     // Show repo link
