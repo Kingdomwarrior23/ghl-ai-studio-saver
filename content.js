@@ -60,12 +60,13 @@
       + hasNav * 2;
 
     // Detect and hard-penalize the GHL Vibe builder shell.
-    // The builder UI is a React app wrapping an iframe — capturing it gives us
-    // the editor chrome, not the actual site. Score -999 so it's always last.
+    // Primary signal: URL path — Vibe builder is always at /v2/location/.../vibe/projects/...
+    // Fallback: DOM attributes (may change across GHL releases).
     const isVibeBuilderShell = !!(
+      window.location.pathname.includes("/vibe/projects/") ||
       doc.querySelector('[data-testid="builder-view"]') ||
       doc.querySelector('[data-testid="top-nav-bar"]') ||
-      doc.querySelector('[data-v-b3a7a1a6]') // Vue SFC attr unique to the Vibe banner component
+      doc.querySelector('[data-v-b3a7a1a6]')
     );
     if (isVibeBuilderShell) {
       data.contentScore = -999;
