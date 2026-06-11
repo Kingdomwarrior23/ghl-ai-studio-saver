@@ -458,181 +458,139 @@ async function doPush(githubToken, repo) {
 
     setProgress(10);
 
-    // ── Detect if repo is empty (no branches yet) ──
-    let isEmptyRepo = false;
+    // ── Ensure repo exists; auto-create if needed ────────
     let defaultBranch = "main";
-    // ── Check if repo exists; auto-create if not ──
+    let parentCommitSha = null; // null = first commit (empty repo)
+
     let repoResp = await fetch(`https://api.github.com/repos/${repo}`, { headers });
     if (!repoResp.ok && repoResp.status === 404) {
-      // Repo doesn't exist — create it automatically
       setStatus("Creating repo on GitHub...", "grabbing");
-      const repoName = repo.split("/").pop();
       const createResp = await fetch("https://api.github.com/user/repos", {
         method: "POST",
         headers,
         body: JSON.stringify({
-          name: repoName,
-          description: `Auto-created by GHL Saver — ${projectData.pageTitle || repoName}`,
+          name: repo.split("/").pop(),
+          description: `GHL Saver export — ${projectData.pageTitle || repo}`,
           private: false,
           auto_init: false,
         }),
       });
       if (!createResp.ok) {
-        const err = await createResp.json();
-        throw new Error(`Failed to create repo "${repo}": ${err.message}. Create it manually on GitHub first.`);
+        const e = await createResp.json();
+        throw new Error(`Could not create repo: ${e.message}`);
       }
-      setStatus("Repo created!", "done");
-      // Re-fetch repo info
       repoResp = await fetch(`https://api.github.com/repos/${repo}`, { headers });
-      if (!repoResp.ok) throw new Error("Repo was created but can't be read back.");
+      if (!repoResp.ok) throw new Error("Repo created but unreadable.");
     } else if (!repoResp.ok) {
-      const err = await repoResp.json();
-      throw new Error(`GitHub API error (${repoResp.status}): ${err.message}`);
+      const e = await repoResp.json();
+      throw new Error(`GitHub error (${repoResp.status}): ${e.message}`);
     }
     const repoInfo = await repoResp.json();
     defaultBranch = repoInfo.default_branch || "main";
-    isEmptyRepo = !repoInfo.default_branch;
-
     setProgress(15);
 
-    if (isEmptyRepo) {
-      // ── EMPTY REPO: Use Git Data API (tree → commit → ref) ──
-      setStatus("Empty repo — creating initial commit...", "grabbing");
-
-      // Build tree entries
-      const tree = files.map((f) => ({
-        path: f.path,
-        mode: "100644",
-        type: "blob",
-        content: f.content,
-      }));
-
-      // Create tree
-      const treeResp = await fetch(`https://api.github.com/repos/${repo}/git/trees`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ tree }),
-      });
-      if (!treeResp.ok) {
-        const err = await treeResp.json();
-        throw new Error("Failed to create tree: " + (err.message || JSON.stringify(err)));
-      }
-      const treeData = await treeResp.json();
-
-      setProgress(40);
-
-      // Create commit (no parent — first commit)
-      const commitResp = await fetch(`https://api.github.com/repos/${repo}/git/commits`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          message: `GHL Saver: initial export of ${projectData.pageTitle || "project"}`,
-          tree: treeData.sha,
-        }),
-      });
-      if (!commitResp.ok) {
-        const err = await commitResp.json();
-        throw new Error("Failed to create commit: " + (err.message || JSON.stringify(err)));
-      }
-      const commitData = await commitResp.json();
-
-      setProgress(70);
-
-      // Create branch ref
-      const refResp = await fetch(`https://api.github.com/repos/${repo}/git/refs`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          ref: `refs/heads/${defaultBranch}`,
-          sha: commitData.sha,
-        }),
-      });
-      if (!refResp.ok) {
-        const err = await refResp.json();
-        throw new Error("Failed to create branch: " + (err.message || JSON.stringify(err)));
-      }
-
-      setProgress(100);
-      setStatus(`Pushed ${files.length} files to ${repo} (initial commit)`, "done");
-
-    } else {
-      // ── EXISTING REPO: Git Data API (tree → commit → fast-forward ref) ──
-      // Contents API breaks on files >1MB because it can't fetch the required
-      // blob SHA, causing a "does not match" rejection on update. The Git Data
-      // API bypasses that entirely — no per-file SHA needed.
-      setStatus(`Pushing to ${defaultBranch}...`, "grabbing");
-
-      // 1. Get current branch tip
+    // ── Get parent commit SHA if repo has commits ────────
+    if (repoInfo.default_branch) {
       const refResp = await fetch(
         `https://api.github.com/repos/${repo}/git/ref/heads/${defaultBranch}`,
         { headers }
       );
-      if (!refResp.ok) {
-        const err = await refResp.json();
-        throw new Error("Failed to get branch ref: " + err.message);
+      if (refResp.ok) {
+        parentCommitSha = (await refResp.json()).object.sha;
       }
-      const currentCommitSha = (await refResp.json()).object.sha;
-      setProgress(25);
+      // If 404 → branch exists in name but has no commits yet — treat as initial
+    }
+    setProgress(20);
 
-      // 2. Get base tree SHA from current commit
-      const baseCommitResp = await fetch(
-        `https://api.github.com/repos/${repo}/git/commits/${currentCommitSha}`,
+    // ── Upload each file as a blob (handles any size) ────
+    // Inline content in the tree API request can silently fail for large files.
+    // Uploading blobs separately and referencing by SHA is the correct approach.
+    setStatus(`Uploading ${files.length} files...`, "grabbing");
+    const treeEntries = [];
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      setStatus(`Uploading ${f.path} (${i + 1}/${files.length})...`, "grabbing");
+      const blobResp = await fetch(`https://api.github.com/repos/${repo}/git/blobs`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ content: f.content, encoding: "utf-8" }),
+      });
+      if (!blobResp.ok) {
+        const e = await blobResp.json();
+        throw new Error(`Blob upload failed for ${f.path}: ${e.message}`);
+      }
+      const { sha: blobSha } = await blobResp.json();
+      treeEntries.push({ path: f.path, mode: "100644", type: "blob", sha: blobSha });
+      setProgress(20 + Math.round(((i + 1) / files.length) * 35));
+    }
+    setProgress(55);
+
+    // ── Create tree ──────────────────────────────────────
+    setStatus("Building commit tree...", "grabbing");
+    const treeBody = { tree: treeEntries };
+    if (parentCommitSha) {
+      // base_tree = existing tree, so unmodified files are preserved
+      const parentResp = await fetch(
+        `https://api.github.com/repos/${repo}/git/commits/${parentCommitSha}`,
         { headers }
       );
-      if (!baseCommitResp.ok) throw new Error("Failed to read current commit");
-      const baseTreeSha = (await baseCommitResp.json()).tree.sha;
-      setProgress(35);
-
-      // 3. Create new tree on top of existing (base_tree preserves unmodified files)
-      const newTreeResp = await fetch(`https://api.github.com/repos/${repo}/git/trees`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          base_tree: baseTreeSha,
-          tree: files.map(f => ({ path: f.path, mode: "100644", type: "blob", content: f.content })),
-        }),
-      });
-      if (!newTreeResp.ok) {
-        const err = await newTreeResp.json();
-        throw new Error("Failed to create tree: " + (err.message || JSON.stringify(err)));
-      }
-      const newTreeSha = (await newTreeResp.json()).sha;
-      setProgress(65);
-
-      // 4. Create commit with parent
-      const newCommitResp = await fetch(`https://api.github.com/repos/${repo}/git/commits`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          message: `GHL Saver: update export of ${projectData.pageTitle || "project"}`,
-          tree: newTreeSha,
-          parents: [currentCommitSha],
-        }),
-      });
-      if (!newCommitResp.ok) {
-        const err = await newCommitResp.json();
-        throw new Error("Failed to create commit: " + (err.message || JSON.stringify(err)));
-      }
-      const newCommitSha = (await newCommitResp.json()).sha;
-      setProgress(85);
-
-      // 5. Fast-forward branch ref
-      const updateRefResp = await fetch(
-        `https://api.github.com/repos/${repo}/git/refs/heads/${defaultBranch}`,
-        {
-          method: "PATCH",
-          headers,
-          body: JSON.stringify({ sha: newCommitSha }),
-        }
-      );
-      if (!updateRefResp.ok) {
-        const err = await updateRefResp.json();
-        throw new Error("Failed to update branch: " + (err.message || JSON.stringify(err)));
-      }
-
-      setProgress(100);
-      setStatus(`Pushed ${files.length} files to ${repo}`, "done");
+      if (parentResp.ok) treeBody.base_tree = (await parentResp.json()).tree.sha;
     }
+    const treeResp = await fetch(`https://api.github.com/repos/${repo}/git/trees`, {
+      method: "POST", headers, body: JSON.stringify(treeBody),
+    });
+    if (!treeResp.ok) {
+      const e = await treeResp.json();
+      throw new Error(`Tree creation failed: ${e.message}`);
+    }
+    const treeSha = (await treeResp.json()).sha;
+    setProgress(70);
+
+    // ── Create commit ────────────────────────────────────
+    setStatus("Creating commit...", "grabbing");
+    const commitBody = {
+      message: parentCommitSha
+        ? `GHL Saver: update export of ${projectData.pageTitle || "project"}`
+        : `GHL Saver: initial export of ${projectData.pageTitle || "project"}`,
+      tree: treeSha,
+      ...(parentCommitSha && { parents: [parentCommitSha] }),
+    };
+    const commitResp = await fetch(`https://api.github.com/repos/${repo}/git/commits`, {
+      method: "POST", headers, body: JSON.stringify(commitBody),
+    });
+    if (!commitResp.ok) {
+      const e = await commitResp.json();
+      throw new Error(`Commit failed: ${e.message}`);
+    }
+    const newCommitSha = (await commitResp.json()).sha;
+    setProgress(85);
+
+    // ── Create or update branch ref ──────────────────────
+    setStatus("Updating branch...", "grabbing");
+    if (parentCommitSha) {
+      // Existing branch — fast-forward
+      const patchResp = await fetch(
+        `https://api.github.com/repos/${repo}/git/refs/heads/${defaultBranch}`,
+        { method: "PATCH", headers, body: JSON.stringify({ sha: newCommitSha }) }
+      );
+      if (!patchResp.ok) {
+        const e = await patchResp.json();
+        throw new Error(`Branch update failed: ${e.message}`);
+      }
+    } else {
+      // New branch — create ref
+      const createRefResp = await fetch(`https://api.github.com/repos/${repo}/git/refs`, {
+        method: "POST", headers,
+        body: JSON.stringify({ ref: `refs/heads/${defaultBranch}`, sha: newCommitSha }),
+      });
+      if (!createRefResp.ok) {
+        const e = await createRefResp.json();
+        throw new Error(`Branch creation failed: ${e.message}`);
+      }
+    }
+
+    setProgress(100);
+    setStatus(`Pushed ${files.length} files to ${repo}`, "done");
 
     // Show repo link
     const linkEl = document.getElementById("currentUrl");
