@@ -69,6 +69,22 @@
     );
     if (isVibeBuilderShell) {
       data.contentScore = -999;
+      // Find the preview iframe URL so popup can fetch it directly as a fallback
+      const allIframes = Array.from(doc.querySelectorAll("iframe"));
+      const previewFrame = allIframes.find((f) => {
+        if (!f.src || f.src.length < 10) return false;
+        if (f.src.startsWith("about:") || f.src.startsWith("javascript:") || f.src.startsWith("blob:")) return false;
+        const h = new URL(f.src).hostname;
+        // Exclude GHL app domains and common third-party embeds
+        if (h.includes("gohighlevel.com") || h.includes("leadconnectorhq.com")) return false;
+        if (h.includes("googleapis.com") || h.includes("google.com") || h.includes("youtube.com")) return false;
+        if (h.includes("intercom") || h.includes("stripe.com") || h.includes("hotjar")) return false;
+        return true;
+      });
+      data.previewIframeUrl = previewFrame ? previewFrame.src : null;
+      if (data.previewIframeUrl) {
+        console.log("[GHL Saver] Builder shell found preview iframe:", data.previewIframeUrl);
+      }
     }
 
     // ── 1. Full rendered HTML ────────────────────────────

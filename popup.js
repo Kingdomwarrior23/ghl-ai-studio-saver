@@ -73,6 +73,138 @@ function showSchemas(schemas) {
   });
 }
 
+// ── Parse raw HTML string into the same data shape as content.js ─────────
+function parseHtmlToData(html, baseUrl) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+
+  // Resolve relative URLs against the page's base
+  const base = new URL(baseUrl);
+  function abs(url) {
+    try { return new URL(url, base).href; } catch { return url; }
+  }
+
+  const data = {};
+  data.frameSource = "direct-fetch (" + base.hostname + ")";
+  data.isIframe = false;
+  data.hostname = base.hostname;
+  data.frameUrl = baseUrl;
+  data.fullHtml = html;
+  data.pageTitle = doc.title || "";
+  data.htmlCount = 1;
+
+  // contentScore: mark as high so it wins over any future builder shell
+  data.contentScore = html.length / 1000;
+
+  // Schemas
+  data.schemas = [];
+  doc.querySelectorAll('script[type="application/ld+json"]').forEach(s => {
+    try {
+      const raw = JSON.parse(s.textContent);
+      if (raw["@graph"]) {
+        raw["@graph"].forEach(item => {
+          const type = item["@type"] || "GraphItem";
+          const preview = Object.keys(item).slice(0, 5).map(k => `${k}: ${String(item[k]).substring(0, 40)}`).join(", ");
+          data.schemas.push({ type, raw: item, preview });
+        });
+      } else {
+        const type = raw["@type"] || "Unknown";
+        const preview = Object.keys(raw).slice(0, 5).map(k => `${k}: ${String(raw[k]).substring(0, 40)}`).join(", ");
+        data.schemas.push({ type, raw, preview });
+      }
+    } catch { data.schemas.push({ type: "MALFORMED", raw: s.textContent, preview: s.textContent.substring(0, 80) }); }
+  });
+  data.schemaCount = data.schemas.length;
+
+  // Meta tags
+  data.metaTags = { meta: [], og: [], twitter: [], other: [] };
+  doc.querySelectorAll("meta").forEach(m => {
+    const obj = {};
+    for (const attr of m.attributes) obj[attr.name] = attr.value;
+    const name = m.getAttribute("name") || m.getAttribute("property") || "";
+    if (name.startsWith("og:")) data.metaTags.og.push(obj);
+    else if (name.startsWith("twitter:")) data.metaTags.twitter.push(obj);
+    else if (name) data.metaTags.meta.push(obj);
+    else data.metaTags.other.push(obj);
+  });
+  data.metaCount = data.metaTags.meta.length;
+  data.ogCount = data.metaTags.og.length;
+  const canonical = doc.querySelector('link[rel="canonical"]');
+  data.metaTags.canonical = canonical ? abs(canonical.getAttribute("href")) : null;
+
+  // Stylesheets
+  data.stylesheets = [];
+  doc.querySelectorAll("style").forEach(s => {
+    if (s.textContent.trim()) data.stylesheets.push({ url: null, content: s.textContent, type: "inline" });
+  });
+  doc.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+    const href = abs(link.getAttribute("href") || "");
+    if (href && !data.stylesheets.some(s => s.url === href)) {
+      data.stylesheets.push({ url: href, content: null, type: "external-url" });
+    }
+  });
+  data.cssCount = data.stylesheets.length;
+
+  // Scripts
+  data.scripts = [];
+  doc.querySelectorAll("script").forEach(s => {
+    if (s.type === "application/ld+json") return;
+    if (s.getAttribute("src")) {
+      const src = abs(s.getAttribute("src"));
+      if (!data.scripts.some(x => x.url === src)) data.scripts.push({ url: src, content: null, type: "external" });
+    } else if (s.textContent.trim()) {
+      data.scripts.push({ url: null, content: s.textContent, type: "inline" });
+    }
+  });
+  data.jsCount = data.scripts.length;
+
+  // Images
+  data.images = [];
+  const seenSrcs = new Set();
+  doc.querySelectorAll("img").forEach(img => {
+    const src = abs(img.getAttribute("src") || img.getAttribute("data-src") || img.getAttribute("data-lazy-src") || "");
+    if (src && !seenSrcs.has(src)) {
+      seenSrcs.add(src);
+      data.images.push({ src, alt: img.alt || "", width: null, height: null, loading: img.loading || "eager" });
+    }
+  });
+  data.imageCount = data.images.length;
+
+  // Fonts
+  data.fonts = [];
+  doc.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+    const href = link.getAttribute("href") || "";
+    if (href.includes("fonts.googleapis") || href.includes("font")) {
+      data.fonts.push({ url: abs(href), type: "google-fonts" });
+    }
+  });
+  data.fontCount = data.fonts.length;
+
+  // GHL structure
+  data.ghlStructure = [];
+  doc.querySelectorAll('[class*="section"],[class*="cblock"],[id*="section"],[class*="el-"],[class*="gh-"],[class*="row"],[class*="column"],[class*="element"]').forEach(el => {
+    data.ghlStructure.push({
+      tag: el.tagName.toLowerCase(),
+      id: el.id || null,
+      classes: (el.className?.toString() || "").substring(0, 200),
+      childCount: el.children.length,
+      textPreview: (el.textContent?.trim() || "").substring(0, 100),
+    });
+  });
+
+  // Links
+  data.links = [];
+  doc.querySelectorAll("a[href]").forEach(a => {
+    const href = a.getAttribute("href");
+    if (href && !href.startsWith("javascript:")) {
+      data.links.push({ href: abs(href), text: a.textContent.trim().substring(0, 100), target: a.target || "" });
+    }
+  });
+
+  data.totalAssets = data.cssCount + data.jsCount + data.imageCount + data.fontCount + data.schemaCount + data.links.length;
+  return data;
+}
+
 // ── Inject content script and extract ────────────────────
 async function grabProject() {
   const btn = document.getElementById("btnGrab");
@@ -154,6 +286,33 @@ async function grabProject() {
     allResponses.forEach((r, i) => {
       console.log(`  Frame ${i}: ${r.frameSource} | score=${r.contentScore} | html=${r.fullHtml?.length} | assets=${r.totalAssets}`);
     });
+
+    // ── Fallback: if best frame is still the builder shell, fetch preview URL directly ──
+    // The Vibe preview iframe may be cross-origin and not injectable. We instead
+    // find its src URL from the builder DOM, fetch the raw HTML via background.js
+    // (which can bypass CORS), then parse it with DOMParser in the popup.
+    if (projectData.contentScore < 0) {
+      const withIframe = allResponses.find(r => r.previewIframeUrl);
+      if (withIframe?.previewIframeUrl) {
+        setStatus("Fetching site from preview frame...", "grabbing");
+        console.log("[GHL Saver] Falling back to direct fetch:", withIframe.previewIframeUrl);
+        const fetchResp = await new Promise(resolve =>
+          chrome.runtime.sendMessage({ action: "fetchUrl", url: withIframe.previewIframeUrl }, r =>
+            resolve(r || { success: false, error: "No response from background" })
+          )
+        );
+        if (fetchResp?.success && fetchResp.content) {
+          const parsed = parseHtmlToData(fetchResp.content, withIframe.previewIframeUrl);
+          parsed.pageUrl = tab.url;
+          parsed.grabbedAt = new Date().toISOString();
+          projectData = parsed;
+        } else {
+          console.warn("[GHL Saver] Direct fetch failed:", fetchResp?.error);
+        }
+      } else {
+        console.warn("[GHL Saver] Builder shell found but no preview iframe URL detected.");
+      }
+    }
 
     setProgress(90);
     showResults(projectData);
