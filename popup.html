@@ -370,6 +370,301 @@
   }
   .footer a { color: #444; text-decoration: none; }
   .footer a:hover { color: #667eea; }
+
+  /* ── Cloudflare Pages ── */
+  .btn-cloudflare {
+    background: #1a1710;
+    color: #f6821f;
+    border: 1px solid rgba(246,130,31,0.3);
+  }
+  .btn-cloudflare:hover { background: #201c12; border-color: rgba(246,130,31,0.6); }
+
+  /* ── Collapsible section toggles ── */
+  .section-toggle {
+    width: 100%;
+    background: transparent;
+    border: 1px solid #1a1a1a;
+    border-radius: 8px;
+    padding: 9px 14px;
+    color: #444;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.15s;
+    letter-spacing: 0.3px;
+  }
+  .section-toggle:hover { background: #111; color: #666; border-color: #2a2a2a; }
+  .section-toggle.open { color: #666; border-color: #2a2a2a; }
+  .section-toggle .arrow { font-size: 9px; transition: transform 0.2s; opacity: 0.5; }
+  .section-toggle.open .arrow { transform: rotate(180deg); }
+
+  /* ── Tools panel ── */
+  .tools-panel {
+    display: none;
+    margin-top: 6px;
+    background: #080808;
+    border: 1px solid #1a1a1a;
+    border-radius: 8px;
+    padding: 10px;
+  }
+  .tools-panel.show { display: block; }
+  .tools-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .btn-tool {
+    background: #0f0f0f;
+    color: #666;
+    border: 1px solid #1a1a1a;
+    padding: 9px 10px;
+    font-size: 11px;
+  }
+  .btn-tool:hover { background: #141414; color: #999; border-color: #2a2a2a; }
+  .btn-tool:disabled { opacity: 0.25; cursor: not-allowed; transform: none; filter: none; }
+  .span2 { grid-column: span 2; }
+  .scrub-notice {
+    display: none;
+    margin-top: 8px;
+    background: rgba(76,175,80,0.05);
+    border: 1px solid rgba(76,175,80,0.15);
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 10px;
+    color: #4caf50;
+    line-height: 1.5;
+  }
+  .scrub-notice.show { display: block; }
+
+  /* ── Snapshot / History panel ── */
+  .snapshot-panel {
+    display: none;
+    margin-top: 6px;
+    background: #080808;
+    border: 1px solid #1a1a1a;
+    border-radius: 8px;
+    padding: 10px;
+  }
+  .snapshot-panel.show { display: block; }
+  .snap-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .snap-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #333; font-weight: 700; }
+  .auto-backup-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: #333;
+  }
+  .toggle-wrap {
+    position: relative;
+    width: 30px;
+    height: 16px;
+    background: #111;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid #1e1e1e;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle-wrap.on { background: #1a2e1a; border-color: #4caf50; }
+  .toggle-wrap::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: #2a2a2a;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: left 0.2s, background 0.2s;
+  }
+  .toggle-wrap.on::after { left: 16px; background: #4caf50; }
+  .schedule-pills {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .pill {
+    background: #0f0f0f;
+    border: 1px solid #1a1a1a;
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 10px;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .pill:hover { color: #555; border-color: #2a2a2a; }
+  .pill.active { background: #0d1a0d; border-color: #4caf50; color: #4caf50; }
+  .snap-list {
+    max-height: 200px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #1a1a1a transparent;
+  }
+  .snap-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 8px;
+    border-radius: 6px;
+    border: 1px solid #111;
+    margin-bottom: 4px;
+    transition: border-color 0.1s;
+  }
+  .snap-item:hover { border-color: #222; background: #0a0a0a; }
+  .snap-info strong { font-size: 11px; color: #666; display: block; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .snap-info span { font-size: 10px; color: #2a2a2a; }
+  .snap-auto-badge { font-size: 9px; color: #4caf50; border: 1px solid #4caf5033; border-radius: 3px; padding: 0 3px; margin-left: 4px; }
+  .snap-acts { display: flex; gap: 4px; flex-shrink: 0; }
+  .snap-btn {
+    background: transparent;
+    border: 1px solid #1a1a1a;
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 10px;
+    cursor: pointer;
+    color: #333;
+    transition: all 0.1s;
+  }
+  .snap-btn:hover { color: #667eea; border-color: #667eea44; }
+  .snap-btn.del:hover { color: #f44336; border-color: #f4433644; }
+  .snap-empty { color: #222; font-size: 11px; text-align: center; padding: 20px 0; }
+
+  /* ── SEO Audit panel ── */
+  .audit-panel, .brand-panel, .compliance-panel {
+    display: none;
+    margin-top: 8px;
+    background: #080808;
+    border: 1px solid #1a1a1a;
+    border-radius: 8px;
+    padding: 10px;
+  }
+  .audit-panel.show, .brand-panel.show, .compliance-panel.show { display: block; }
+  .panel-close {
+    float: right;
+    background: transparent;
+    border: none;
+    color: #333;
+    font-size: 14px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 2px;
+  }
+  .panel-close:hover { color: #666; }
+  .panel-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #333;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .audit-score-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #111;
+  }
+  .score-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .score-a { background: rgba(76,175,80,0.08); border: 2px solid #4caf50; color: #4caf50; }
+  .score-b { background: rgba(139,195,74,0.08); border: 2px solid #8bc34a; color: #8bc34a; }
+  .score-c { background: rgba(255,152,0,0.08); border: 2px solid #ff9800; color: #ff9800; }
+  .score-d { background: rgba(244,67,54,0.08); border: 2px solid #f44336; color: #f44336; }
+  .score-info .score-title { font-size: 12px; color: #888; font-weight: 600; }
+  .score-info .score-sub { font-size: 10px; color: #333; margin-top: 2px; }
+  .audit-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 5px 0;
+    border-bottom: 1px solid #0d0d0d;
+    font-size: 11px;
+  }
+  .audit-row:last-child { border: none; }
+  .audit-icon { flex-shrink: 0; }
+  .audit-text { color: #666; }
+  .audit-fix { color: #2a2a2a; font-size: 10px; margin-top: 1px; }
+
+  /* ── Brand Kit ── */
+  .brand-section { margin-bottom: 10px; }
+  .brand-section:last-child { margin-bottom: 0; }
+  .brand-section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #2a2a2a; font-weight: 700; margin-bottom: 6px; }
+  .swatch-row { display: flex; flex-wrap: wrap; gap: 4px; }
+  .swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .swatch:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: calc(100% + 3px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a1a;
+    color: #ccc;
+    font-size: 9px;
+    padding: 2px 5px;
+    border-radius: 3px;
+    white-space: nowrap;
+    z-index: 100;
+    pointer-events: none;
+  }
+  .font-pill-row { display: flex; flex-wrap: wrap; gap: 4px; }
+  .font-pill { background: #0f0f0f; border: 1px solid #1a1a1a; border-radius: 10px; padding: 2px 8px; font-size: 10px; color: #555; }
+  .brand-export-btn {
+    width: 100%;
+    margin-top: 8px;
+    background: transparent;
+    border: 1px solid #1a1a1a;
+    border-radius: 6px;
+    padding: 6px;
+    color: #333;
+    font-size: 10px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .brand-export-btn:hover { background: #0f0f0f; color: #555; border-color: #2a2a2a; }
+
+  /* ── GDPR compliance ── */
+  .compliance-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px solid #0d0d0d;
+    font-size: 11px;
+  }
+  .compliance-row:last-child { border: none; }
+  .compliance-icon { flex-shrink: 0; }
+  .compliance-text { color: #666; }
+  .compliance-sub { font-size: 10px; color: #2a2a2a; margin-top: 1px; }
 </style>
 </head>
 <body>
@@ -377,9 +672,9 @@
 <div class="header">
   <div class="header-top">
     <h1><span class="icon">🔓</span> Keep My GHL</h1>
-    <span class="version-badge">v2.0</span>
+    <span class="version-badge">v3.0</span>
   </div>
-  <p>Export any AI Studio site — ZIP, GitHub, or live in 1 click</p>
+  <p>Export, backup, audit &amp; deploy any AI Studio site</p>
 </div>
 
 <div class="content">
@@ -410,6 +705,9 @@
       <button class="btn btn-vercel" id="btnVercel" disabled>
         ▲ Vercel
       </button>
+      <button class="btn btn-cloudflare" id="btnCloudflare" disabled>
+        ☁️ CF Pages
+      </button>
     </div>
     <button class="btn btn-schemas" id="btnSchemas">
       🔍 Preview Schemas Only
@@ -420,6 +718,81 @@
     <div id="sourceHint" style="font-size:11px;color:#888;text-align:center;margin-top:4px;display:none;">
       💡 If this fails, reload the AI Studio page — the interceptor captures files on load.
     </div>
+
+    <!-- ── Tools & Analysis ───────────────────────── -->
+    <button class="section-toggle" id="toggleTools">
+      🛠️ Tools &amp; Analysis <span class="arrow">▼</span>
+    </button>
+    <div class="tools-panel" id="toolsPanel">
+      <div class="tools-grid">
+        <button class="btn btn-tool" id="btnSEOAudit" disabled>🔍 SEO Audit</button>
+        <button class="btn btn-tool" id="btnBrandKit" disabled>🎨 Brand Kit</button>
+        <button class="btn btn-tool" id="btnGDPR" disabled>🛡️ GDPR Check</button>
+        <button class="btn btn-tool" id="btnScrub" disabled>🧹 Scrub Scripts</button>
+        <button class="btn btn-tool span2" id="btnCrawl">🕸️ Crawl Entire Funnel</button>
+      </div>
+      <div class="scrub-notice" id="scrubNotice"></div>
+    </div>
+
+    <!-- ── Version History / Auto-Backup ─────────── -->
+    <button class="section-toggle" id="toggleSnapshots">
+      🕐 Version History <span class="arrow">▼</span>
+    </button>
+    <div class="snapshot-panel" id="snapshotPanel">
+      <div class="snap-header">
+        <span class="snap-label">Auto-Backup</span>
+        <div class="auto-backup-row">
+          <div class="toggle-wrap" id="autoBackupToggle"></div>
+          <span id="autoBackupLabel">Off</span>
+        </div>
+      </div>
+      <div class="schedule-pills" id="schedulePills" style="display:none">
+        <span class="pill" data-h="1">Every 1h</span>
+        <span class="pill" data-h="6">Every 6h</span>
+        <span class="pill active" data-h="24">Daily</span>
+        <span class="pill" data-h="168">Weekly</span>
+      </div>
+      <div class="snap-list" id="snapList">
+        <div class="snap-empty">No snapshots yet — grab a project to save one.</div>
+      </div>
+    </div>
+
+    <!-- ── SEO Audit results ── -->
+    <div class="audit-panel" id="auditPanel">
+      <button class="panel-close" id="auditClose">✕</button>
+      <div class="panel-title">SEO Audit</div>
+      <div class="audit-score-row">
+        <div class="score-circle score-d" id="auditCircle">—</div>
+        <div class="score-info">
+          <div class="score-title" id="auditScoreTitle">—</div>
+          <div class="score-sub" id="auditScoreSub">Run audit to see results</div>
+        </div>
+      </div>
+      <div id="auditList"></div>
+    </div>
+
+    <!-- ── Brand Kit results ── -->
+    <div class="brand-panel" id="brandPanel">
+      <button class="panel-close" id="brandClose">✕</button>
+      <div class="panel-title">Brand Kit</div>
+      <div class="brand-section">
+        <div class="brand-section-label">Colors</div>
+        <div class="swatch-row" id="brandColors"></div>
+      </div>
+      <div class="brand-section">
+        <div class="brand-section-label">Fonts</div>
+        <div class="font-pill-row" id="brandFonts"></div>
+      </div>
+      <button class="brand-export-btn" id="brandExport">⬇️ Export Brand Kit as JSON</button>
+    </div>
+
+    <!-- ── GDPR Compliance results ── -->
+    <div class="compliance-panel" id="compliancePanel">
+      <button class="panel-close" id="complianceClose">✕</button>
+      <div class="panel-title">GDPR / Compliance Check</div>
+      <div id="complianceList"></div>
+    </div>
+
   </div>
 
   <!-- Source code deploy panel — shown after source capture -->
@@ -477,7 +850,7 @@
 </div>
 
 <div class="footer">
-  Keep My GHL &mdash; <a href="https://keepmyghl.com" target="_blank">keepmyghl.com</a>
+  Keep My GHL v3.0 &mdash; <a href="https://keepmyghl.com" target="_blank">keepmyghl.com</a> &middot; <a href="privacy.html" target="_blank">Privacy Policy</a>
 </div>
 
 <script src="lib/jszip.min.js"></script>
