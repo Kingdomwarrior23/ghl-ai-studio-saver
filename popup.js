@@ -2015,7 +2015,7 @@ async function deployToCloudflare() {
   setProgress(5);
 
   try {
-    let { cfToken, cfAccountId, cfProject } = await chrome.storage.local.get(["cfToken", "cfAccountId", "cfProject"]);
+    let { cfToken, cfAccountId } = await chrome.storage.local.get(["cfToken", "cfAccountId"]);
 
     if (!cfToken) {
       cfToken = prompt("Cloudflare API Token (Pages:Edit permission):");
@@ -2025,13 +2025,13 @@ async function deployToCloudflare() {
       cfAccountId = prompt("Cloudflare Account ID (right sidebar of dash.cloudflare.com):");
       if (!cfAccountId) { btn.disabled = false; btn.textContent = "☁️ CF Pages"; return; }
     }
-    if (!cfProject) {
-      const domain = (() => { try { return new URL(projectData.pageUrl).hostname.replace(/\./g, "-"); } catch { return "ghl-site"; } })();
-      cfProject = prompt("Project name:", domain.substring(0, 28) + "-" + Date.now().toString().slice(-5));
-      if (!cfProject) { btn.disabled = false; btn.textContent = "☁️ CF Pages"; return; }
-      cfProject = cfProject.toLowerCase().replace(/[^a-z0-9-]/g, "-").substring(0, 58);
-    }
-    await chrome.storage.local.set({ cfToken, cfAccountId, cfProject });
+    // Project name derived fresh per-deploy from the grabbed page URL — never locked in storage
+    const domain = (() => { try { return new URL(projectData.pageUrl).hostname.replace(/\./g, "-"); } catch { return "ghl-site"; } })();
+    let cfProject = prompt("Project name (new = creates it, existing = redeploys):", domain.substring(0, 28) + "-" + Date.now().toString().slice(-5));
+    if (!cfProject) { btn.disabled = false; btn.textContent = "☁️ CF Pages"; return; }
+    cfProject = cfProject.toLowerCase().replace(/[^a-z0-9-]/g, "-").substring(0, 58);
+    // Save credentials only (not project name — each site gets its own)
+    await chrome.storage.local.set({ cfToken, cfAccountId });
 
     const auth = { Authorization: `Bearer ${cfToken}` };
 
