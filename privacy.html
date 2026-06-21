@@ -1,105 +1,616 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Privacy Policy — Keep My GHL</title>
+<meta name="description" content="Keep My GHL privacy policy. We don't collect, store, or transmit your data. Everything stays on your device.">
+<link rel="canonical" href="https://ownmyghl.ignitiv.io/privacy">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #0f0f0f;
-    color: #c0c0c0;
-    padding: 40px 24px;
-    max-width: 680px;
-    margin: 0 auto;
-    line-height: 1.7;
-    font-size: 14px;
+/* ── Reset ───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #08090c;
+  --bg-2:      #0e1016;
+  --bg-3:      #12151e;
+  --surface:   #161b27;
+  --surface-2: #1c2234;
+  --border:    rgba(255,255,255,0.06);
+  --border-2:  rgba(255,255,255,0.10);
+  --border-3:  rgba(255,255,255,0.16);
+
+  --ink:       #eef2f7;
+  --ink-2:     #8896ab;
+  --ink-3:     #4a576a;
+
+  --blue:      #4f8ef7;
+  --blue-dim:  rgba(79,142,247,0.12);
+  --blue-glow: rgba(79,142,247,0.22);
+  --green:     #34d399;
+  --green-dim: rgba(52,211,153,0.10);
+
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --r-pill: 100px;
+
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* Subtle grain overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.container {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ── Navigation ──────────────────────────────────────── */
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  border-bottom: 1px solid var(--border);
+  background: rgba(8,9,12,0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 58px;
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: -0.02em;
+}
+
+.logo-glyph {
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, #1e3a8a 0%, var(--blue) 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 18px var(--blue-glow);
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.nav-links a {
+  color: var(--ink-2);
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: color 0.15s;
+}
+
+.nav-links a:hover { color: var(--ink); }
+
+.nav-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--blue);
+  color: #fff;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: var(--r-pill);
+  letter-spacing: -0.01em;
+  transition: all 0.18s var(--ease);
+  box-shadow: 0 0 0 1px rgba(79,142,247,0.3), 0 4px 14px rgba(79,142,247,0.25);
+}
+
+.nav-cta:hover {
+  background: #6299f8;
+  box-shadow: 0 0 0 1px rgba(79,142,247,0.5), 0 6px 20px rgba(79,142,247,0.35);
+  transform: translateY(-1px);
+}
+
+/* ── Page header ─────────────────────────────────────── */
+.page-header {
+  padding: 72px 0 56px;
+  position: relative;
+  overflow: hidden;
+}
+
+.page-header-aurora {
+  position: absolute;
+  top: -80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 700px;
+  height: 400px;
+  background: radial-gradient(ellipse 50% 50% at 50% 30%, rgba(79,142,247,0.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.page-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--blue-dim);
+  border: 1px solid rgba(79,142,247,0.18);
+  color: var(--blue);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 13px;
+  border-radius: var(--r-pill);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+.page-header h1 {
+  font-size: clamp(32px, 5vw, 52px);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-bottom: 16px;
+}
+
+.page-header .updated {
+  font-size: 13px;
+  color: var(--ink-3);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Content ─────────────────────────────────────────── */
+.content-wrap {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 64px;
+  padding-bottom: 120px;
+  align-items: start;
+}
+
+/* Sidebar TOC */
+.toc {
+  position: sticky;
+  top: 80px;
+}
+
+.toc-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 14px;
+}
+
+.toc a {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-3);
+  text-decoration: none;
+  padding: 6px 0;
+  border-left: 2px solid var(--border);
+  padding-left: 14px;
+  transition: all 0.15s;
+  line-height: 1.4;
+}
+
+.toc a:hover {
+  color: var(--ink);
+  border-left-color: var(--blue);
+}
+
+/* Body copy */
+.prose {
+  min-width: 0;
+}
+
+.prose section {
+  margin-bottom: 56px;
+}
+
+.prose h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.prose p {
+  font-size: 15px;
+  color: var(--ink-2);
+  line-height: 1.75;
+  margin-bottom: 14px;
+}
+
+.prose p:last-child { margin-bottom: 0; }
+
+.prose a {
+  color: var(--blue);
+  text-decoration: none;
+}
+.prose a:hover { text-decoration: underline; }
+
+.prose ul {
+  list-style: none;
+  margin: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.prose ul li {
+  display: flex;
+  gap: 12px;
+  font-size: 15px;
+  color: var(--ink-2);
+  line-height: 1.65;
+}
+
+.prose ul li::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  min-width: 5px;
+  background: var(--blue);
+  border-radius: 50%;
+  margin-top: 9px;
+}
+
+.prose strong { color: var(--ink); font-weight: 600; }
+
+.prose code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-sm);
+  padding: 2px 7px;
+  color: var(--blue);
+}
+
+/* TL;DR callout */
+.callout {
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-left: 3px solid var(--blue);
+  border-radius: var(--r-md);
+  padding: 18px 20px;
+  margin-bottom: 48px;
+}
+
+.callout-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--blue);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+
+.callout p {
+  font-size: 14px;
+  color: var(--ink-2);
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* Permission table */
+.perm-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 14px;
+}
+
+.perm-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 10px 14px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+}
+
+.perm-table td {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  color: var(--ink-2);
+  line-height: 1.6;
+  vertical-align: top;
+}
+
+.perm-table tr:nth-child(even) td { background: rgba(255,255,255,0.015); }
+
+.perm-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--blue);
+  white-space: nowrap;
+}
+
+/* ── Footer ──────────────────────────────────────────── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 32px 0;
+}
+
+.footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.footer-copy {
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+.footer-copy a {
+  color: var(--ink-3);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.footer-copy a:hover { color: var(--ink-2); }
+
+.footer-links {
+  display: flex;
+  gap: 20px;
+}
+
+.footer-links a {
+  font-size: 13px;
+  color: var(--ink-3);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.footer-links a:hover { color: var(--ink-2); }
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 720px) {
+  .content-wrap {
+    grid-template-columns: 1fr;
+    gap: 40px;
   }
-  h1 { font-size: 22px; color: #fff; margin-bottom: 6px; }
-  .subtitle { color: #555; font-size: 12px; margin-bottom: 32px; }
-  h2 { font-size: 14px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin: 28px 0 10px; font-weight: 700; }
-  p { color: #777; margin-bottom: 12px; }
-  ul { color: #777; padding-left: 20px; margin-bottom: 12px; }
-  li { margin-bottom: 6px; }
-  strong { color: #aaa; }
-  .highlight {
-    background: rgba(102,126,234,0.08);
-    border: 1px solid rgba(102,126,234,0.2);
-    border-radius: 8px;
-    padding: 14px 16px;
-    margin: 20px 0;
-    color: #8a9fd4;
-    font-size: 13px;
-  }
-  a { color: #667eea; text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #1a1a1a; font-size: 11px; color: #333; }
+  .toc { display: none; }
+  .nav-links { display: none; }
+}
 </style>
 </head>
 <body>
 
-<h1>🔒 Privacy Policy</h1>
-<p class="subtitle">Keep My GHL Chrome Extension &nbsp;·&nbsp; Last updated: June 2026</p>
+<!-- ── NAV ───────────────────────────────────────────────── -->
+<nav>
+  <div class="container nav-inner">
+    <a href="/" class="nav-logo">
+      <div class="logo-glyph">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <rect x="3" y="7" width="10" height="8" rx="1.5" stroke="white" stroke-width="1.3"/>
+          <path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="white" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      Keep My GHL
+    </a>
+    <div class="nav-links">
+      <a href="/#how">How it works</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/#faq">FAQ</a>
+    </div>
+    <a href="/#pricing" class="nav-cta">
+      Get it — $47
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6h8M6 2l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </div>
+</nav>
 
-<div class="highlight">
-  <strong>Short version:</strong> Keep My GHL runs entirely in your browser. We never collect, transmit, or store your data on any server. Everything stays on your device.
+<!-- ── PAGE HEADER ───────────────────────────────────────── -->
+<div class="page-header">
+  <div class="page-header-aurora"></div>
+  <div class="container">
+    <div class="page-eyebrow">Legal</div>
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: June 21, 2026</p>
+  </div>
 </div>
 
-<h2>What We Access</h2>
-<p>The extension requests access to the following browser capabilities:</p>
-<ul>
-  <li><strong>Active Tab</strong> — to read the page you are currently viewing in GoHighLevel AI Studio</li>
-  <li><strong>Scripting</strong> — to inject content scripts that extract page HTML, CSS, JS, and assets</li>
-  <li><strong>Downloads</strong> — to save ZIP files to your computer</li>
-  <li><strong>Storage</strong> — to save your API tokens (GitHub, Netlify, Vercel, Cloudflare) and snapshots locally in your browser</li>
-  <li><strong>Web Navigation</strong> — to identify page frames for accurate content extraction</li>
-  <li><strong>Tabs</strong> — to find open GHL tabs for auto-backup scheduling</li>
-  <li><strong>Alarms</strong> — to run scheduled auto-backups at the interval you choose</li>
-  <li><strong>All URLs</strong> — to fetch external CSS, JS, fonts, and images referenced by your GHL pages so they can be bundled into self-contained exports</li>
-</ul>
+<!-- ── CONTENT ───────────────────────────────────────────── -->
+<div class="container">
+  <div class="content-wrap">
 
-<h2>What We Do NOT Do</h2>
-<ul>
-  <li>We do <strong>not</strong> collect any personal information</li>
-  <li>We do <strong>not</strong> transmit your page content, credentials, or snapshots to any server we operate</li>
-  <li>We do <strong>not</strong> use analytics or tracking of any kind</li>
-  <li>We do <strong>not</strong> share data with third parties</li>
-  <li>We do <strong>not</strong> read or access any pages outside of GoHighLevel / LeadConnector domains (except to fetch assets referenced by those pages)</li>
-</ul>
+    <!-- Sidebar TOC -->
+    <nav class="toc" aria-label="Table of contents">
+      <div class="toc-label">On this page</div>
+      <a href="#tldr">TL;DR</a>
+      <a href="#no-collection">What we don't collect</a>
+      <a href="#on-device">What stays on your device</a>
+      <a href="#permissions">Permissions explained</a>
+      <a href="#third-party">Third-party services</a>
+      <a href="#children">Children's privacy</a>
+      <a href="#changes">Changes</a>
+      <a href="#contact">Contact</a>
+    </nav>
 
-<h2>Where Your Data Goes</h2>
-<p>When you use the extension's deploy features, files are sent directly from your browser to the service you choose:</p>
-<ul>
-  <li><strong>GitHub</strong> — your token and files go directly to <code>api.github.com</code></li>
-  <li><strong>Netlify</strong> — your token and files go directly to <code>api.netlify.com</code></li>
-  <li><strong>Vercel</strong> — your token and files go directly to <code>api.vercel.com</code></li>
-  <li><strong>Cloudflare Pages</strong> — your token and files go directly to <code>api.cloudflare.com</code></li>
-</ul>
-<p>These requests are made by your browser under your credentials. Keep My GHL acts as a bridge — it never sees or stores the response on our end because there is no "our end."</p>
+    <!-- Prose -->
+    <div class="prose">
 
-<h2>API Token Storage</h2>
-<p>API tokens you enter (GitHub PAT, Vercel token, Netlify token, Cloudflare API token) are stored in <code>chrome.storage.local</code> — this is local-only storage on your device, encrypted by Chrome, and never synced to Chrome's cloud sync.</p>
-<p>To remove stored tokens at any time, go to <code>chrome://extensions</code> → Keep My GHL → Clear storage, or use the Settings panel inside the extension.</p>
+      <!-- TL;DR callout -->
+      <div class="callout" id="tldr">
+        <div class="callout-label">TL;DR</div>
+        <p>Keep My GHL does not collect, store, or transmit any of your personal data or page content to any server. Everything stays on your device. The only outbound connections are ones <em>you</em> initiate — directly to GitHub or Netlify using your own credentials.</p>
+      </div>
 
-<h2>Version History & Snapshots</h2>
-<p>When auto-backup is enabled or you manually grab a project, snapshots are stored in <code>chrome.storage.local</code> on your device. They are not uploaded anywhere unless you explicitly click a deploy button.</p>
+      <section id="no-collection">
+        <h2>What we don't collect</h2>
+        <p>Keep My GHL does not collect:</p>
+        <ul>
+          <li>Your name, email, or any personal identifiers</li>
+          <li>The content of pages you export</li>
+          <li>Your GoHighLevel credentials or session data</li>
+          <li>Your browsing history or URLs you visit</li>
+          <li>Usage analytics, telemetry, or crash reports of any kind</li>
+          <li>IP addresses or device fingerprints</li>
+        </ul>
+        <p>There is no analytics SDK, no tracking pixel, and no call home. The extension has no backend server of its own.</p>
+      </section>
 
-<h2>Permissions Justification</h2>
-<p>The <code>&lt;all_urls&gt;</code> host permission is required to fetch external assets (CSS, JS, fonts, images) that GHL pages load from CDNs. Without this, exports would be broken with missing styles and scripts. The extension only fetches URLs that are already referenced on the page you are exporting.</p>
+      <section id="on-device">
+        <h2>What stays on your device</h2>
+        <p>The extension uses Chrome's local <code>storage</code> API solely to save your GitHub Personal Access Token if you choose to use the GitHub push feature. This token is:</p>
+        <ul>
+          <li>Stored only in your browser's local extension storage</li>
+          <li>Never transmitted to IgnitivIO, our servers, or any third party</li>
+          <li>Sent directly from your browser to GitHub's API only when you click "Push to GitHub"</li>
+          <li>Removable at any time via Chrome → Extensions → Keep My GHL → Clear data</li>
+        </ul>
+        <p>Exported project files (HTML, CSS, JS, images) are saved directly to your local Downloads folder via the Chrome downloads API. They never pass through our servers.</p>
+      </section>
 
-<h2>Children's Privacy</h2>
-<p>This extension is intended for web developers and digital marketers. It is not directed at children under 13 and we do not knowingly collect information from children.</p>
+      <section id="permissions">
+        <h2>Permissions explained</h2>
+        <p>Chrome requires extensions to declare every permission they use. Here is exactly why Keep My GHL requests each one:</p>
 
-<h2>Changes to This Policy</h2>
-<p>If this policy changes materially, we will update the "Last updated" date above and note the change in the extension's release notes.</p>
+        <table class="perm-table">
+          <thead>
+            <tr>
+              <th>Permission</th>
+              <th>Why it's needed</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="perm-name">activeTab</span></td>
+              <td>Reads the current GHL page content only when you click the extension icon. Never runs automatically in the background.</td>
+            </tr>
+            <tr>
+              <td><span class="perm-name">scripting</span></td>
+              <td>Injects the extraction script into the active tab when you click "Grab Project." Required to read the page DOM, styles, and assets.</td>
+            </tr>
+            <tr>
+              <td><span class="perm-name">downloads</span></td>
+              <td>Saves the exported ZIP file to your local Downloads folder.</td>
+            </tr>
+            <tr>
+              <td><span class="perm-name">storage</span></td>
+              <td>Saves your GitHub token, Netlify token, and Cloudflare API credentials locally so you don't have to re-enter them. Also stores version history snapshots locally. Never synced to any server.</td>
+            </tr>
+            <tr>
+              <td><span class="perm-name">webNavigation</span></td>
+              <td>Detects when you're on a GHL AI Studio page so the extension icon activates. No data is recorded or transmitted.</td>
+            </tr>
+            <tr>
+              <td><span class="perm-name">alarms</span></td>
+              <td>Powers the Auto-Backup feature. When enabled, Chrome fires a background alarm on your chosen schedule (1h / 6h / daily / weekly) to silently grab an open GHL tab. The alarm fires only in Chrome — no server is involved.</td>
+            </tr>
+            <tr>
+              <td><span class="perm-name">tabs</span></td>
+              <td>Used only during Auto-Backup to find an open GHL AI Studio tab to back up. The extension never reads tab content unless you explicitly trigger a grab or auto-backup is enabled.</td>
+            </tr>
+            <tr>
+              <td><span class="perm-name">&lt;all_urls&gt;</span></td>
+              <td>GHL AI Studio sites are served on your customers' custom domains — not just gohighlevel.com. The extension needs access to those domains to capture your page's assets. It only activates when you explicitly click the icon.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
 
-<h2>Contact</h2>
-<p>Questions? Open an issue on <a href="https://github.com/kingdomwarrior23/ghl-ai-studio-saver" target="_blank">GitHub</a>.</p>
+      <section id="third-party">
+        <h2>Third-party services</h2>
+        <p><strong>GitHub.</strong> When you use the GitHub push feature, your exported files are sent directly from your browser to the GitHub API (<a href="https://api.github.com" target="_blank" rel="noopener">api.github.com</a>) using your own Personal Access Token. IgnitivIO has no access to your GitHub account or repositories. GitHub's privacy policy applies: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">github.com/privacy</a>.</p>
+        <p><strong>Netlify.</strong> When you use the Netlify deploy feature, files are sent directly from your browser to Netlify's API using your credentials. IgnitivIO has no access to your Netlify account. Netlify's privacy policy applies: <a href="https://www.netlify.com/privacy/" target="_blank" rel="noopener">netlify.com/privacy</a>.</p>
+        <p><strong>Vercel.</strong> When you use the Vercel deploy feature, files are sent directly from your browser to Vercel's API using your credentials. IgnitivIO has no access to your Vercel account. Vercel's privacy policy applies: <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener">vercel.com/legal/privacy-policy</a>.</p>
+        <p><strong>GitHub Pages.</strong> Deployments to GitHub Pages go through the GitHub API described above. The same token and privacy terms apply.</p>
+        <p><strong>Cloudflare Pages.</strong> When you use the Cloudflare Pages deploy feature, your exported files are sent directly from your browser to Cloudflare's API (<a href="https://api.cloudflare.com" target="_blank" rel="noopener">api.cloudflare.com</a>) using your own API token and Account ID. Your Cloudflare API token is stored locally in your browser's extension storage — it is never sent to IgnitivIO. Cloudflare's privacy policy applies: <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">cloudflare.com/privacypolicy</a>.</p>
+        <p>No other third-party services are contacted by the extension.</p>
+      </section>
 
-<div class="footer">
-  Keep My GHL is an independent tool and is not affiliated with GoHighLevel, LLC.
-</div>
+      <section id="children">
+        <h2>Children's privacy</h2>
+        <p>Keep My GHL is a professional tool for GoHighLevel agency users and is not directed at children under 13. We do not knowingly collect any information from children.</p>
+      </section>
+
+      <section id="changes">
+        <h2>Changes to this policy</h2>
+        <p>If we update this policy, the "Last updated" date at the top of this page will change. We will also note significant changes in the extension's release notes. Continued use of the extension after any update constitutes acceptance of the revised policy.</p>
+      </section>
+
+      <section id="contact">
+        <h2>Contact</h2>
+        <p>Questions about this policy? Email <a href="mailto:hello@ignitiv.io">hello@ignitiv.io</a> or visit <a href="https://ownmyghl.ignitiv.io">ownmyghl.ignitiv.io</a>. We respond same day.</p>
+      </section>
+
+    </div><!-- /prose -->
+  </div><!-- /content-wrap -->
+</div><!-- /container -->
+
+<!-- ── FOOTER ─────────────────────────────────────────────── -->
+<footer>
+  <div class="container footer-inner">
+    <div class="footer-copy">
+      &copy; 2026 Keep My GHL &nbsp;·&nbsp; Built by <a href="https://ignitivio.com">IgnitivIO</a>
+    </div>
+    <div class="footer-links">
+      <a href="mailto:hello@ignitiv.io">Support</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/">Home</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+// Nav scroll shadow (matches main page)
+const nav = document.querySelector('nav');
+window.addEventListener('scroll', () => {
+  nav.style.boxShadow = window.scrollY > 8
+    ? '0 1px 0 rgba(255,255,255,0.05), 0 4px 20px rgba(0,0,0,0.3)'
+    : 'none';
+}, { passive: true });
+</script>
 
 </body>
 </html>
