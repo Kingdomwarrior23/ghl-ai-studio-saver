@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — Keep My GHL</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0f0f0f;
+    color: #c0c0c0;
+    padding: 40px 24px;
+    max-width: 680px;
+    margin: 0 auto;
+    line-height: 1.7;
+    font-size: 14px;
+  }
+  h1 { font-size: 22px; color: #fff; margin-bottom: 6px; }
+  .subtitle { color: #555; font-size: 12px; margin-bottom: 32px; }
+  h2 { font-size: 14px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin: 28px 0 10px; font-weight: 700; }
+  p { color: #777; margin-bottom: 12px; }
+  ul { color: #777; padding-left: 20px; margin-bottom: 12px; }
+  li { margin-bottom: 6px; }
+  strong { color: #aaa; }
+  .highlight {
+    background: rgba(102,126,234,0.08);
+    border: 1px solid rgba(102,126,234,0.2);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 20px 0;
+    color: #8a9fd4;
+    font-size: 13px;
+  }
+  a { color: #667eea; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #1a1a1a; font-size: 11px; color: #333; }
+</style>
+</head>
+<body>
+
+<h1>🔒 Privacy Policy</h1>
+<p class="subtitle">Keep My GHL Chrome Extension &nbsp;·&nbsp; Last updated: June 2026</p>
+
+<div class="highlight">
+  <strong>Short version:</strong> Keep My GHL runs entirely in your browser. We never collect, transmit, or store your data on any server. Everything stays on your device.
+</div>
+
+<h2>What We Access</h2>
+<p>The extension requests access to the following browser capabilities:</p>
+<ul>
+  <li><strong>Active Tab</strong> — to read the page you are currently viewing in GoHighLevel AI Studio</li>
+  <li><strong>Scripting</strong> — to inject content scripts that extract page HTML, CSS, JS, and assets</li>
+  <li><strong>Downloads</strong> — to save ZIP files to your computer</li>
+  <li><strong>Storage</strong> — to save your API tokens (GitHub, Netlify, Vercel, Cloudflare) and snapshots locally in your browser</li>
+  <li><strong>Web Navigation</strong> — to identify page frames for accurate content extraction</li>
+  <li><strong>Tabs</strong> — to find open GHL tabs for auto-backup scheduling</li>
+  <li><strong>Alarms</strong> — to run scheduled auto-backups at the interval you choose</li>
+  <li><strong>All URLs</strong> — to fetch external CSS, JS, fonts, and images referenced by your GHL pages so they can be bundled into self-contained exports</li>
+</ul>
+
+<h2>What We Do NOT Do</h2>
+<ul>
+  <li>We do <strong>not</strong> collect any personal information</li>
+  <li>We do <strong>not</strong> transmit your page content, credentials, or snapshots to any server we operate</li>
+  <li>We do <strong>not</strong> use analytics or tracking of any kind</li>
+  <li>We do <strong>not</strong> share data with third parties</li>
+  <li>We do <strong>not</strong> read or access any pages outside of GoHighLevel / LeadConnector domains (except to fetch assets referenced by those pages)</li>
+</ul>
+
+<h2>Where Your Data Goes</h2>
+<p>When you use the extension's deploy features, files are sent directly from your browser to the service you choose:</p>
+<ul>
+  <li><strong>GitHub</strong> — your token and files go directly to <code>api.github.com</code></li>
+  <li><strong>Netlify</strong> — your token and files go directly to <code>api.netlify.com</code></li>
+  <li><strong>Vercel</strong> — your token and files go directly to <code>api.vercel.com</code></li>
+  <li><strong>Cloudflare Pages</strong> — your token and files go directly to <code>api.cloudflare.com</code></li>
+</ul>
+<p>These requests are made by your browser under your credentials. Keep My GHL acts as a bridge — it never sees or stores the response on our end because there is no "our end."</p>
+
+<h2>API Token Storage</h2>
+<p>API tokens you enter (GitHub PAT, Vercel token, Netlify token, Cloudflare API token) are stored in <code>chrome.storage.local</code> — this is local-only storage on your device, encrypted by Chrome, and never synced to Chrome's cloud sync.</p>
+<p>To remove stored tokens at any time, go to <code>chrome://extensions</code> → Keep My GHL → Clear storage, or use the Settings panel inside the extension.</p>
+
+<h2>Version History & Snapshots</h2>
+<p>When auto-backup is enabled or you manually grab a project, snapshots are stored in <code>chrome.storage.local</code> on your device. They are not uploaded anywhere unless you explicitly click a deploy button.</p>
+
+<h2>Permissions Justification</h2>
+<p>The <code>&lt;all_urls&gt;</code> host permission is required to fetch external assets (CSS, JS, fonts, images) that GHL pages load from CDNs. Without this, exports would be broken with missing styles and scripts. The extension only fetches URLs that are already referenced on the page you are exporting.</p>
+
+<h2>Children's Privacy</h2>
+<p>This extension is intended for web developers and digital marketers. It is not directed at children under 13 and we do not knowingly collect information from children.</p>
+
+<h2>Changes to This Policy</h2>
+<p>If this policy changes materially, we will update the "Last updated" date above and note the change in the extension's release notes.</p>
+
+<h2>Contact</h2>
+<p>Questions? Open an issue on <a href="https://github.com/kingdomwarrior23/ghl-ai-studio-saver" target="_blank">GitHub</a>.</p>
+
+<div class="footer">
+  Keep My GHL is an independent tool and is not affiliated with GoHighLevel, LLC.
+</div>
+
+</body>
+</html>

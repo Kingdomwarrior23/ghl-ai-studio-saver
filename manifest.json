@@ -1,14 +1,16 @@
 {
   "manifest_version": 3,
   "name": "Keep My GHL — AI Studio Exporter",
-  "version": "2.1.0",
-  "description": "Export any GoHighLevel AI Studio site to a ZIP, push to GitHub, or deploy to Netlify — in one click. Own your work forever.",
+  "version": "3.0.0",
+  "description": "Export, backup, audit & deploy any GoHighLevel AI Studio site. ZIP, GitHub, Netlify, Vercel, Cloudflare Pages — one click. Own your work forever.",
   "permissions": [
     "activeTab",
     "scripting",
     "downloads",
     "storage",
-    "webNavigation"
+    "webNavigation",
+    "alarms",
+    "tabs"
   ],
   "host_permissions": [
     "<all_urls>"

@@ -324,8 +324,14 @@ async function grabProject() {
     document.getElementById("btnNetlify").disabled = false;
     document.getElementById("btnVercel").disabled = false;
     document.getElementById("btnGHPages").disabled = false;
+    document.getElementById("btnCloudflare").disabled = false;
+    document.getElementById("btnSEOAudit").disabled = false;
+    document.getElementById("btnBrandKit").disabled = false;
+    document.getElementById("btnGDPR").disabled = false;
+    document.getElementById("btnScrub").disabled = false;
 
     setStatus("Done! " + projectData.totalAssets + " assets captured", "done");
+    saveSnapshot(projectData);
     setProgress(100);
   } catch (err) {
     setStatus("Error: " + err.message, "error");
@@ -1121,6 +1127,11 @@ async function previewSchemas() {
             document.getElementById("btnNetlify").disabled = false;
             document.getElementById("btnVercel").disabled = false;
             document.getElementById("btnGHPages").disabled = false;
+            document.getElementById("btnCloudflare").disabled = false;
+            document.getElementById("btnSEOAudit").disabled = false;
+            document.getElementById("btnBrandKit").disabled = false;
+            document.getElementById("btnGDPR").disabled = false;
+            document.getElementById("btnScrub").disabled = false;
           }
         }
       } catch {}
@@ -1995,6 +2006,567 @@ function extractStudioFiles() {
   });
 }
 
+// ── Cloudflare Pages ─────────────────────────────────────
+async function deployToCloudflare() {
+  if (!projectData) return;
+  const btn = document.getElementById("btnCloudflare");
+  btn.disabled = true;
+  btn.textContent = "⏳ Deploying...";
+  setProgress(5);
+
+  try {
+    let { cfToken, cfAccountId, cfProject } = await chrome.storage.local.get(["cfToken", "cfAccountId", "cfProject"]);
+
+    if (!cfToken) {
+      cfToken = prompt("Cloudflare API Token (Pages:Edit permission):");
+      if (!cfToken) { btn.disabled = false; btn.textContent = "☁️ CF Pages"; return; }
+    }
+    if (!cfAccountId) {
+      cfAccountId = prompt("Cloudflare Account ID (right sidebar of dash.cloudflare.com):");
+      if (!cfAccountId) { btn.disabled = false; btn.textContent = "☁️ CF Pages"; return; }
+    }
+    if (!cfProject) {
+      const domain = (() => { try { return new URL(projectData.pageUrl).hostname.replace(/\./g, "-"); } catch { return "ghl-site"; } })();
+      cfProject = prompt("Project name:", domain.substring(0, 28) + "-" + Date.now().toString().slice(-5));
+      if (!cfProject) { btn.disabled = false; btn.textContent = "☁️ CF Pages"; return; }
+      cfProject = cfProject.toLowerCase().replace(/[^a-z0-9-]/g, "-").substring(0, 58);
+    }
+    await chrome.storage.local.set({ cfToken, cfAccountId, cfProject });
+
+    const auth = { Authorization: `Bearer ${cfToken}` };
+
+    setStatus("Creating Cloudflare Pages project...", "grabbing");
+    setProgress(10);
+    await fetch(`https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/pages/projects`, {
+      method: "POST",
+      headers: { ...auth, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: cfProject, production_branch: "main" }),
+    });
+
+    setStatus("Building bundle...", "grabbing");
+    setProgress(20);
+    const { html, files: bundleFiles } = await buildBundle(msg => setStatus(msg, "grabbing"));
+    const allFiles = [
+      { path: "/index.html", content: html, binary: false },
+      ...bundleFiles.map(f => ({ ...f, path: "/" + f.path })),
+    ];
+
+    setStatus("Computing hashes...", "grabbing");
+    setProgress(50);
+    const encoder = new TextEncoder();
+    const entries = await Promise.all(allFiles.map(async f => {
+      const bytes = f.binary
+        ? Uint8Array.from(atob(f.base64 || ""), c => c.charCodeAt(0))
+        : encoder.encode(f.content || "");
+      const hashBuf = await crypto.subtle.digest("SHA-256", bytes);
+      const hash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
+      return { path: f.path, hash, bytes, binary: f.binary };
+    }));
+
+    const manifest = {};
+    for (const e of entries) manifest[e.path] = e.hash;
+
+    setStatus("Uploading to Cloudflare Pages...", "grabbing");
+    setProgress(65);
+    const form = new FormData();
+    form.append("manifest", JSON.stringify(manifest));
+    for (const e of entries) {
+      const mime = e.binary ? "application/octet-stream" : (e.path.endsWith(".html") ? "text/html" : e.path.endsWith(".css") ? "text/css" : "text/plain");
+      form.append(e.hash, new Blob([e.bytes], { type: mime }), e.path.split("/").pop());
+    }
+
+    const deployResp = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/pages/projects/${cfProject}/deployments`,
+      { method: "POST", headers: auth, body: form }
+    );
+
+    if (!deployResp.ok) {
+      const err = await deployResp.json();
+      throw new Error(err.errors?.[0]?.message || "Cloudflare deploy failed");
+    }
+    const deploy = await deployResp.json();
+    const siteUrl = deploy.result?.url ? `https://${deploy.result.url}` : `https://${cfProject}.pages.dev`;
+
+    setProgress(100);
+    setStatus("Live on Cloudflare Pages! ✅", "done");
+    document.getElementById("currentUrl").innerHTML =
+      `<a href="${siteUrl}" target="_blank" style="color:#f6821f;text-decoration:underline;">☁️ ${siteUrl}</a>`;
+
+  } catch (err) {
+    setStatus("Cloudflare failed: " + err.message, "error");
+    console.error("[Keep My GHL] Cloudflare error:", err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "☁️ CF Pages";
+  }
+}
+
+// ── Version History & Snapshots ───────────────────────────
+async function saveSnapshot(data) {
+  const snap = {
+    id: Date.now(),
+    url: data.pageUrl || data.frameUrl || "",
+    title: data.pageTitle || "Untitled",
+    grabbedAt: data.grabbedAt || new Date().toISOString(),
+    auto: false,
+    htmlLength: data.fullHtml?.length || 0,
+    html: (data.fullHtml || "").substring(0, 400000),
+    counts: {
+      css: data.cssCount || 0,
+      js: data.jsCount || 0,
+      images: data.imageCount || 0,
+      schemas: data.schemaCount || 0,
+    },
+  };
+  const { snapshots = [] } = await chrome.storage.local.get(["snapshots"]);
+  snapshots.unshift(snap);
+  if (snapshots.length > 25) snapshots.splice(25);
+  await chrome.storage.local.set({ snapshots });
+  renderSnapList(snapshots);
+}
+
+async function loadSnapshots() {
+  const { snapshots = [] } = await chrome.storage.local.get(["snapshots"]);
+  renderSnapList(snapshots);
+}
+
+function renderSnapList(snapshots) {
+  const list = document.getElementById("snapList");
+  if (!list) return;
+  if (!snapshots.length) {
+    list.innerHTML = '<div class="snap-empty">No snapshots yet — grab a project to save one.</div>';
+    return;
+  }
+  list.innerHTML = snapshots.map(s => {
+    const dt = new Date(s.grabbedAt);
+    const label = dt.toLocaleDateString() + " " + dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const title = (s.title || "Untitled").substring(0, 30);
+    const badge = s.auto ? '<span class="snap-auto-badge">auto</span>' : "";
+    const kb = Math.round(s.htmlLength / 1024);
+    return `<div class="snap-item">
+      <div class="snap-info">
+        <strong>${title}${badge}</strong>
+        <span>${label} &middot; ${kb}KB &middot; ${s.counts.css}css ${s.counts.js}js ${s.counts.images}img</span>
+      </div>
+      <div class="snap-acts">
+        <button class="snap-btn" onclick="restoreSnapshot(${s.id})">Restore</button>
+        <button class="snap-btn del" onclick="deleteSnapshot(${s.id})">✕</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+async function restoreSnapshot(id) {
+  const { snapshots = [] } = await chrome.storage.local.get(["snapshots"]);
+  const snap = snapshots.find(s => s.id === id);
+  if (!snap) return;
+  const parsed = parseHtmlToData(snap.html, snap.url || "https://unknown.com");
+  parsed.pageUrl = snap.url;
+  parsed.grabbedAt = snap.grabbedAt;
+  projectData = parsed;
+
+  document.getElementById("btnDownload").disabled = false;
+  document.getElementById("btnGitHub").disabled = false;
+  document.getElementById("btnNetlify").disabled = false;
+  document.getElementById("btnVercel").disabled = false;
+  document.getElementById("btnGHPages").disabled = false;
+  document.getElementById("btnCloudflare").disabled = false;
+  document.getElementById("btnSEOAudit").disabled = false;
+  document.getElementById("btnBrandKit").disabled = false;
+  document.getElementById("btnGDPR").disabled = false;
+  document.getElementById("btnScrub").disabled = false;
+  showResults(parsed);
+  setStatus("Snapshot restored: " + snap.title, "done");
+}
+
+async function deleteSnapshot(id) {
+  const { snapshots = [] } = await chrome.storage.local.get(["snapshots"]);
+  const updated = snapshots.filter(s => s.id !== id);
+  await chrome.storage.local.set({ snapshots: updated });
+  renderSnapList(updated);
+}
+
+async function initAutoBackup() {
+  const { autoBackupHours = 0 } = await chrome.storage.local.get(["autoBackupHours"]);
+  const toggle = document.getElementById("autoBackupToggle");
+  const label = document.getElementById("autoBackupLabel");
+  const pills = document.getElementById("schedulePills");
+  const on = autoBackupHours > 0;
+  toggle.classList.toggle("on", on);
+  label.textContent = on ? `Every ${autoBackupHours >= 168 ? "week" : autoBackupHours + "h"}` : "Off";
+  if (pills) pills.style.display = on ? "flex" : "none";
+  document.querySelectorAll(".pill").forEach(p => {
+    p.classList.toggle("active", parseInt(p.dataset.h) === autoBackupHours);
+  });
+}
+
+async function toggleAutoBackup() {
+  const { autoBackupHours = 0 } = await chrome.storage.local.get(["autoBackupHours"]);
+  if (autoBackupHours > 0) {
+    await chrome.storage.local.set({ autoBackupHours: 0 });
+    chrome.runtime.sendMessage({ action: "clearAlarm" });
+  } else {
+    await chrome.storage.local.set({ autoBackupHours: 24 });
+    chrome.runtime.sendMessage({ action: "setAlarm", hours: 24 });
+  }
+  initAutoBackup();
+}
+
+async function setSchedule(hours) {
+  await chrome.storage.local.set({ autoBackupHours: hours });
+  chrome.runtime.sendMessage({ action: "setAlarm", hours });
+  initAutoBackup();
+}
+
+// ── SEO Audit ─────────────────────────────────────────────
+function runSEOAudit() {
+  if (!projectData) return;
+
+  const checks = [];
+  let earned = 0, total = 0;
+
+  function chk(label, pass, pts, fix) {
+    total += pts;
+    if (pass) earned += pts;
+    else checks.push({ label, fix, pts, pass });
+  }
+
+  const title = projectData.pageTitle || "";
+  chk("Page title present", title.length > 0, 5, "Add a <title> tag to your page");
+  chk("Title length 30–60 chars", title.length >= 30 && title.length <= 60, 3,
+    `Title is ${title.length} chars — aim for 30–60`);
+
+  const meta = projectData.metaTags?.meta || [];
+  const desc = meta.find(m => m.name === "description")?.content || "";
+  chk("Meta description present", desc.length > 0, 5, "Add <meta name='description' content='…'>");
+  chk("Description length 120–160 chars", desc.length >= 120 && desc.length <= 160, 3,
+    `Description is ${desc.length} chars — aim for 120–160`);
+
+  chk("Canonical URL set", !!projectData.metaTags?.canonical, 3,
+    "Add <link rel='canonical' href='YOUR-URL'>");
+
+  const og = projectData.metaTags?.og || [];
+  chk("OG title set", og.some(m => m.property === "og:title"), 3, "Add <meta property='og:title'>");
+  chk("OG image set", og.some(m => m.property === "og:image"), 4, "Add <meta property='og:image'> for social sharing");
+  chk("OG description set", og.some(m => m.property === "og:description"), 2, "Add <meta property='og:description'>");
+
+  const schemas = projectData.schemas || [];
+  chk("JSON-LD structured data present", schemas.length > 0, 4,
+    "Add JSON-LD schema markup to improve rich snippets");
+
+  const imgsMissingAlt = (projectData.images || []).filter(i => !i.alt || !i.alt.trim()).length;
+  chk("All images have alt text", imgsMissingAlt === 0, 3,
+    `${imgsMissingAlt} image${imgsMissingAlt === 1 ? "" : "s"} missing alt text`);
+
+  chk("Page loads over HTTPS", (projectData.pageUrl || "").startsWith("https://"), 2,
+    "Ensure your site uses HTTPS");
+
+  const pct = Math.round((earned / total) * 100);
+  const grade = pct >= 90 ? "A" : pct >= 75 ? "B" : pct >= 55 ? "C" : "D";
+  const cls = pct >= 90 ? "score-a" : pct >= 75 ? "score-b" : pct >= 55 ? "score-c" : "score-d";
+
+  const circle = document.getElementById("auditCircle");
+  circle.textContent = grade;
+  circle.className = "score-circle " + cls;
+  document.getElementById("auditScoreTitle").textContent = `${pct}% — ${earned}/${total} points`;
+  document.getElementById("auditScoreSub").textContent =
+    checks.length === 0 ? "Perfect score! All checks passed." : `${checks.length} issue${checks.length === 1 ? "" : "s"} found`;
+
+  document.getElementById("auditList").innerHTML = checks.map(c =>
+    `<div class="audit-row">
+      <span class="audit-icon">❌</span>
+      <div>
+        <div class="audit-text">${c.label}</div>
+        <div class="audit-fix">→ ${c.fix}</div>
+      </div>
+    </div>`
+  ).join("") + (checks.length === 0 ? '<div class="audit-row"><span class="audit-icon">✅</span><div class="audit-text">All SEO checks passed</div></div>' : "");
+
+  document.getElementById("auditPanel").classList.add("show");
+}
+
+// ── Brand Kit Extractor ───────────────────────────────────
+function extractBrandKit() {
+  if (!projectData) return;
+
+  const allCss = (projectData.stylesheets || [])
+    .filter(s => s.content)
+    .map(s => s.content)
+    .join("\n");
+
+  const colorSet = new Set();
+  const colorRe = /#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b|rgba?\([^)]+\)/g;
+  const skip = new Set(["#000","#000000","#fff","#ffffff","#transparent"]);
+  (allCss.match(colorRe) || []).forEach(c => {
+    const n = c.toLowerCase().replace(/\s/g, "");
+    if (!skip.has(n)) colorSet.add(c);
+  });
+  const colors = [...colorSet].slice(0, 48);
+
+  const fontSet = new Set();
+  (allCss.match(/font-family\s*:\s*([^;}{]+)/g) || []).forEach(f => {
+    f.replace("font-family", "").replace(":", "").trim()
+      .split(",")
+      .map(s => s.trim().replace(/['"]/g, ""))
+      .filter(s => s && !["inherit","initial","sans-serif","serif","monospace","system-ui","-apple-system"].includes(s))
+      .forEach(s => fontSet.add(s));
+  });
+  (projectData.fonts || []).forEach(f => {
+    const m = (f.url || "").match(/family=([^&:]+)/);
+    if (m) fontSet.add(decodeURIComponent(m[1]).replace(/\+/g, " "));
+  });
+  const fonts = [...fontSet].slice(0, 20);
+
+  const colorsEl = document.getElementById("brandColors");
+  colorsEl.innerHTML = colors.length
+    ? colors.map(c => `<div class="swatch" style="background:${c}" title="${c}" onclick="navigator.clipboard.writeText('${c}')"></div>`).join("")
+    : '<span style="color:#333;font-size:10px">No colors extracted from inline CSS</span>';
+
+  const fontsEl = document.getElementById("brandFonts");
+  fontsEl.innerHTML = fonts.length
+    ? fonts.map(f => `<span class="font-pill">${f}</span>`).join("")
+    : '<span style="color:#333;font-size:10px">No custom fonts detected</span>';
+
+  window.__brandKit = { colors, fonts, url: projectData.pageUrl, extractedAt: new Date().toISOString() };
+  document.getElementById("brandPanel").classList.add("show");
+}
+
+function exportBrandKit() {
+  if (!window.__brandKit) return;
+  const json = JSON.stringify(window.__brandKit, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "brand-kit.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ── GDPR / Compliance Check ───────────────────────────────
+function runGDPRCheck() {
+  if (!projectData) return;
+
+  const html = (projectData.fullHtml || "").toLowerCase();
+  const links = projectData.links || [];
+
+  const checks = [
+    {
+      label: "Privacy policy link present",
+      pass: links.some(l => /privacy/i.test(l.text) || /privacy/i.test(l.href)),
+      fix: "Link to your privacy policy page",
+    },
+    {
+      label: "Terms of service link present",
+      pass: links.some(l => /terms|tos/i.test(l.text) || /terms/i.test(l.href)),
+      fix: "Link to your terms of service",
+    },
+    {
+      label: "Cookie consent / notice",
+      pass: /cookie|gdpr|consent/i.test(html),
+      fix: "Add a cookie consent banner (required in EU)",
+    },
+    {
+      label: "No unmasked phone numbers in plain HTML",
+      pass: !(html.match(/\b(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/g) || []).length > 3,
+      fix: "Consider masking phone numbers to reduce spam harvesting",
+    },
+    {
+      label: "Meta robots not set to noindex",
+      pass: !html.includes('name="robots"') || !html.includes("noindex"),
+      fix: "Check: <meta name='robots'> should not contain 'noindex' on public pages",
+    },
+    {
+      label: "Canonical URL present",
+      pass: !!projectData.metaTags?.canonical,
+      fix: "Add <link rel='canonical'> to prevent duplicate content penalties",
+    },
+    {
+      label: "HTTPS",
+      pass: (projectData.pageUrl || "").startsWith("https://"),
+      fix: "All pages should load over HTTPS",
+    },
+  ];
+
+  document.getElementById("complianceList").innerHTML = checks.map(c =>
+    `<div class="compliance-row">
+      <span class="compliance-icon">${c.pass ? "✅" : "⚠️"}</span>
+      <div>
+        <div class="compliance-text">${c.label}</div>
+        ${!c.pass ? `<div class="compliance-sub">→ ${c.fix}</div>` : ""}
+      </div>
+    </div>`
+  ).join("");
+
+  document.getElementById("compliancePanel").classList.add("show");
+}
+
+// ── Tracking Script Scrubber ──────────────────────────────
+function scrubTrackingScripts() {
+  if (!projectData) return;
+  let html = projectData.fullHtml || "";
+  let count = 0;
+
+  const patterns = [
+    // GHL / LeadConnector
+    { re: /<script[^>]*(?:msgsndr|leadconnector|highlevel)[^>]*>[\s\S]*?<\/script>/gi, name: "GHL chat widget" },
+    // Google Tag Manager
+    { re: /<script[^>]*googletagmanager\.com\/gtm[^>]*>[\s\S]*?<\/script>/gi, name: "Google Tag Manager" },
+    { re: /<!-- Google Tag Manager[\s\S]*?<!-- End Google Tag Manager -->/gi, name: "GTM noscript" },
+    // Google Analytics
+    { re: /<script[^>]*google-analytics\.com[^>]*>[\s\S]*?<\/script>/gi, name: "Google Analytics" },
+    { re: /<script[^>]*gtag[^>]*>[\s\S]*?<\/script>/gi, name: "gtag.js" },
+    // Facebook Pixel
+    { re: /<script[^>]*connect\.facebook\.net[^>]*>[\s\S]*?<\/script>/gi, name: "Facebook Pixel" },
+    { re: /<!-- Facebook Pixel[\s\S]*?<!-- End Facebook Pixel[^>]*-->/gi, name: "FB Pixel block" },
+    // HotJar
+    { re: /<script[^>]*hotjar[^>]*>[\s\S]*?<\/script>/gi, name: "HotJar" },
+    // Intercom
+    { re: /<script[^>]*intercomcdn[^>]*>[\s\S]*?<\/script>/gi, name: "Intercom" },
+    // TikTok Pixel
+    { re: /<script[^>]*analytics\.tiktok[^>]*>[\s\S]*?<\/script>/gi, name: "TikTok Pixel" },
+    // Clarity
+    { re: /<script[^>]*clarity\.ms[^>]*>[\s\S]*?<\/script>/gi, name: "Microsoft Clarity" },
+  ];
+
+  const removed = [];
+  for (const { re, name } of patterns) {
+    const before = html.length;
+    html = html.replace(re, "");
+    if (html.length < before) { removed.push(name); count++; }
+  }
+
+  projectData.fullHtml = html;
+
+  const notice = document.getElementById("scrubNotice");
+  notice.textContent = count > 0
+    ? `✅ Removed ${count} tracking script${count === 1 ? "" : "s"}: ${removed.join(", ")}. Re-download or re-deploy to get the clean version.`
+    : "ℹ️ No known tracking scripts found in the captured HTML.";
+  notice.classList.add("show");
+}
+
+// ── Multi-Page Funnel Crawler ─────────────────────────────
+async function crawlFunnel() {
+  if (!projectData) {
+    setStatus("Grab a page first before crawling", "error");
+    return;
+  }
+
+  const btn = document.getElementById("btnCrawl");
+  btn.disabled = true;
+  btn.textContent = "⏳ Crawling...";
+
+  try {
+    const base = new URL(projectData.pageUrl || projectData.frameUrl || "");
+    const baseHost = base.hostname;
+
+    const sameDomainLinks = [...new Set(
+      (projectData.links || [])
+        .map(l => l.href)
+        .filter(href => {
+          try {
+            const u = new URL(href);
+            return u.hostname === baseHost && u.pathname !== base.pathname;
+          } catch { return false; }
+        })
+        .slice(0, 10)
+    )];
+
+    if (sameDomainLinks.length === 0) {
+      setStatus("No same-domain links found to crawl", "error");
+      return;
+    }
+
+    const confirmed = confirm(
+      `Found ${sameDomainLinks.length} page(s) on ${baseHost}:\n\n` +
+      sameDomainLinks.map((u, i) => `${i + 1}. ${new URL(u).pathname}`).join("\n") +
+      "\n\nFetch and package all into one ZIP?"
+    );
+    if (!confirmed) return;
+
+    setStatus("Crawling funnel pages...", "grabbing");
+    setProgress(5);
+
+    const JSZip = window.JSZip;
+    const zip = new JSZip();
+
+    const addPage = async (url, slug) => {
+      const resp = await new Promise(resolve =>
+        chrome.runtime.sendMessage({ action: "fetchUrl", url }, r => resolve(r || { success: false }))
+      );
+      if (!resp.success) return;
+      const parsed = parseHtmlToData(resp.content, url);
+      zip.file(`${slug}/index.html`, resp.content);
+      return parsed;
+    };
+
+    const rootSlug = base.pathname.replace(/\//g, "-").replace(/^-/, "") || "home";
+    zip.file(`${rootSlug}/index.html`, projectData.fullHtml || "");
+    setProgress(15);
+
+    for (let i = 0; i < sameDomainLinks.length; i++) {
+      const url = sameDomainLinks[i];
+      const slug = new URL(url).pathname.replace(/\//g, "-").replace(/^-|-$/g, "") || `page-${i}`;
+      setStatus(`Fetching page ${i + 1}/${sameDomainLinks.length}: /${slug}`, "grabbing");
+      await addPage(url, slug);
+      setProgress(15 + Math.round(((i + 1) / sameDomainLinks.length) * 70));
+    }
+
+    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  ${[projectData.pageUrl, ...sameDomainLinks].map(u => `<url><loc>${u}</loc></url>`).join("\n  ")}
+</urlset>`;
+    zip.file("sitemap.xml", sitemap);
+    zip.file("README.md", `# Funnel Crawl\nCrawled ${sameDomainLinks.length + 1} pages from ${baseHost}\nDate: ${new Date().toISOString()}\n\nPages:\n${[projectData.pageUrl, ...sameDomainLinks].map(u => `- ${u}`).join("\n")}`);
+
+    setStatus("Compressing...", "grabbing");
+    setProgress(90);
+    const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `funnel-${baseHost}-${Date.now()}.zip`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+
+    setProgress(100);
+    setStatus(`✅ Funnel crawled — ${sameDomainLinks.length + 1} pages packaged`, "done");
+
+  } catch (err) {
+    setStatus("Crawl failed: " + err.message, "error");
+    console.error("[Keep My GHL] Crawl error:", err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "🕸️ Crawl Entire Funnel";
+  }
+}
+
+// ── Panel + section toggle helpers ───────────────────────
+function initSectionToggles() {
+  document.getElementById("toggleTools").addEventListener("click", function () {
+    this.classList.toggle("open");
+    document.getElementById("toolsPanel").classList.toggle("show");
+  });
+  document.getElementById("toggleSnapshots").addEventListener("click", function () {
+    this.classList.toggle("open");
+    document.getElementById("snapshotPanel").classList.toggle("show");
+    if (document.getElementById("snapshotPanel").classList.contains("show")) loadSnapshots();
+  });
+
+  document.getElementById("autoBackupToggle").addEventListener("click", toggleAutoBackup);
+
+  document.querySelectorAll(".pill").forEach(p => {
+    p.addEventListener("click", () => setSchedule(parseInt(p.dataset.h)));
+  });
+
+  document.getElementById("auditClose").addEventListener("click", () =>
+    document.getElementById("auditPanel").classList.remove("show"));
+  document.getElementById("brandClose").addEventListener("click", () =>
+    document.getElementById("brandPanel").classList.remove("show"));
+  document.getElementById("complianceClose").addEventListener("click", () =>
+    document.getElementById("compliancePanel").classList.remove("show"));
+
+  document.getElementById("brandExport").addEventListener("click", exportBrandKit);
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -2009,6 +2581,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("btnNetlify").addEventListener("click", deployToNetlify);
   document.getElementById("btnVercel").addEventListener("click", deployToVercel);
   document.getElementById("btnGHPages").addEventListener("click", deployToGHPages);
+  document.getElementById("btnCloudflare").addEventListener("click", deployToCloudflare);
   document.getElementById("btnSchemas").addEventListener("click", previewSchemas);
   document.getElementById("btnSource").addEventListener("click", exportSourceCode);
+  document.getElementById("btnSEOAudit").addEventListener("click", runSEOAudit);
+  document.getElementById("btnBrandKit").addEventListener("click", extractBrandKit);
+  document.getElementById("btnGDPR").addEventListener("click", runGDPRCheck);
+  document.getElementById("btnScrub").addEventListener("click", scrubTrackingScripts);
+  document.getElementById("btnCrawl").addEventListener("click", crawlFunnel);
+
+  initSectionToggles();
+  initAutoBackup();
 });
