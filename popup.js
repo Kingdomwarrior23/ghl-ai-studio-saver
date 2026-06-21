@@ -1686,6 +1686,193 @@ function showSourcePanel(fileCount) {
   document.getElementById("sourceFileCount").textContent = fileCount + " files captured";
 }
 
+// ── Source export token helpers ───────────────────────────
+async function getVercelToken() {
+  let { vercelToken } = await chrome.storage.local.get(["vercelToken"]);
+  if (!vercelToken) {
+    vercelToken = prompt("Enter your Vercel API token (vercel.com/account/tokens):");
+    if (!vercelToken) return null;
+    await chrome.storage.local.set({ vercelToken });
+  }
+  return vercelToken;
+}
+
+async function getGitHubToken() {
+  let { githubToken } = await chrome.storage.local.get(["githubToken"]);
+  if (!githubToken) {
+    githubToken = prompt("Enter your GitHub Personal Access Token (needs repo scope):");
+    if (!githubToken) return null;
+    await chrome.storage.local.set({ githubToken });
+  }
+  return githubToken;
+}
+
+async function openRepoPicker() {
+  const { githubToken } = await chrome.storage.local.get(["githubToken"]);
+  if (!githubToken) return;
+  setStatus("Loading repositories...", "grabbing");
+  try {
+    const [repos, { githubRepo: lastRepo }] = await Promise.all([
+      fetchUserRepos(githubToken),
+      chrome.storage.local.get(["githubRepo"]),
+    ]);
+    showSourceRepoPicker(githubToken, repos, lastRepo || null);
+    setStatus("Select a repo to push source files to", "ready");
+  } catch (err) {
+    setStatus("Error loading repos: " + err.message, "error");
+    const btn = document.getElementById("btnSourceGitHub");
+    if (btn) { btn.disabled = false; btn.textContent = "🐙 Push to GitHub"; }
+  }
+}
+
+function showSourceRepoPicker(token, repos, lastRepo) {
+  const picker = document.getElementById("repoPicker");
+  const listEl = document.getElementById("repoList");
+  const searchEl = document.getElementById("repoSearch");
+
+  function renderList(filter) {
+    const q = (filter || "").toLowerCase();
+    const filtered = repos.filter(r => !q || r.full_name.toLowerCase().includes(q));
+    let html = "";
+    if (!q && lastRepo) {
+      html += `<div class="repo-item repo-item--last" data-repo="${lastRepo}">
+        <span class="repo-name">${lastRepo}</span><span class="repo-badge">last used</span>
+      </div>`;
+    }
+    filtered.forEach(r => {
+      if (!q && r.full_name === lastRepo) return;
+      html += `<div class="repo-item" data-repo="${r.full_name}">
+        <span class="repo-name">${r.full_name}</span>
+        <span class="repo-vis">${r.private ? "private" : "public"}</span>
+      </div>`;
+    });
+    if (!html) html = '<div class="repo-empty">No repos found</div>';
+    listEl.innerHTML = html;
+    listEl.querySelectorAll(".repo-item").forEach(el => {
+      el.addEventListener("click", () => { hidePicker(); doSourcePush(token, el.dataset.repo); });
+    });
+  }
+
+  renderList("");
+  searchEl.value = "";
+  searchEl.addEventListener("input", () => renderList(searchEl.value));
+  picker.classList.add("show");
+  setTimeout(() => searchEl.focus(), 50);
+
+  document.getElementById("btnCreateNewRepo").onclick = () => {
+    const name = document.getElementById("newRepoName").value.trim();
+    if (!name) { document.getElementById("newRepoName").focus(); return; }
+    hidePicker();
+    doSourcePush(token, name);
+  };
+  document.getElementById("newRepoName").onkeydown = e => {
+    if (e.key === "Enter") document.getElementById("btnCreateNewRepo").click();
+  };
+  document.getElementById("btnCancelPicker").onclick = () => {
+    hidePicker();
+    window.__pendingSourcePush = false;
+    const btn = document.getElementById("btnSourceGitHub");
+    if (btn) { btn.disabled = false; btn.textContent = "🐙 Push to GitHub"; }
+  };
+}
+
+async function doSourcePush(githubToken, repo) {
+  const files = window.__sourceFiles;
+  const projectId = window.__sourceProjectId;
+  if (!files) { setStatus("No source files to push", "error"); return; }
+  window.__pendingSourcePush = false;
+
+  if (!repo.includes("/")) {
+    const userResp = await fetch("https://api.github.com/user", {
+      headers: { Authorization: `token ${githubToken}`, Accept: "application/vnd.github.v3+json" },
+    });
+    if (userResp.ok) {
+      const { login } = await userResp.json();
+      repo = `${login}/${repo}`;
+    }
+  }
+
+  await chrome.storage.local.set({ githubRepo: repo });
+
+  const btn = document.getElementById("btnSourceGitHub");
+  btn.disabled = true;
+  btn.textContent = "⏳ Pushing...";
+  setProgress(5);
+
+  const headers = {
+    Authorization: `token ${githubToken}`,
+    "Content-Type": "application/json",
+    Accept: "application/vnd.github.v3+json",
+  };
+
+  try {
+    const fileEntries = Object.entries(files);
+    setStatus(`Pushing ${fileEntries.length} source files to ${repo}...`, "grabbing");
+
+    let repoResp = await fetch(`https://api.github.com/repos/${repo}`, { headers });
+    if (!repoResp.ok && repoResp.status === 404) {
+      setStatus("Creating repo on GitHub...", "grabbing");
+      const createResp = await fetch("https://api.github.com/user/repos", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          name: repo.split("/").pop(),
+          description: `GHL Source Export — ${projectId}`,
+          private: false,
+          auto_init: true,
+        }),
+      });
+      if (!createResp.ok) {
+        const e = await createResp.json();
+        throw new Error(`Could not create repo: ${e.message}`);
+      }
+      await new Promise(r => setTimeout(r, 1500));
+    } else if (!repoResp.ok) {
+      const e = await repoResp.json();
+      throw new Error(`GitHub error (${repoResp.status}): ${e.message}`);
+    }
+
+    setProgress(15);
+
+    for (let i = 0; i < fileEntries.length; i++) {
+      const [path, content] = fileEntries[i];
+      const cleanPath = path.replace(/^\//, "");
+      setStatus(`Pushing ${cleanPath} (${i + 1}/${fileEntries.length})...`, "grabbing");
+
+      let existingSha = null;
+      const getResp = await fetch(`https://api.github.com/repos/${repo}/contents/${cleanPath}`, { headers });
+      if (getResp.ok) existingSha = (await getResp.json()).sha;
+
+      const encoded = typeof content === "string" ? toBase64(content) : content;
+      const putResp = await fetch(`https://api.github.com/repos/${repo}/contents/${cleanPath}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          message: existingSha ? `update ${cleanPath}` : `add ${cleanPath}`,
+          content: encoded,
+          ...(existingSha && { sha: existingSha }),
+        }),
+      });
+      if (!putResp.ok) {
+        const e = await putResp.json();
+        throw new Error(`Failed to push ${cleanPath}: ${e.message}`);
+      }
+      setProgress(15 + Math.round(((i + 1) / fileEntries.length) * 80));
+    }
+
+    setProgress(100);
+    setStatus(`✅ Pushed ${fileEntries.length} source files to ${repo}`, "done");
+    document.getElementById("currentUrl").innerHTML =
+      `<a href="https://github.com/${repo}" target="_blank" style="color:#4caf50;text-decoration:underline;">✅ github.com/${repo}</a>`;
+
+  } catch (err) {
+    setStatus("GitHub push error: " + err.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "🐙 Push to GitHub";
+  }
+}
+
 async function sourceDownloadZip() {
   const blob = window.__sourceBlob;
   const projectId = window.__sourceProjectId;
