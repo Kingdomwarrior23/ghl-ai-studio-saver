@@ -6,7 +6,7 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     width: 420px;
-    max-height: 580px;
+    max-height: 620px;
     overflow-y: auto;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: #0f0f0f;
@@ -18,19 +18,34 @@
     padding: 16px 20px;
     border-bottom: 1px solid #2a2a4a;
   }
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
   .header h1 {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
     color: #fff;
     display: flex;
     align-items: center;
     gap: 8px;
   }
-  .header h1 .icon { font-size: 22px; }
+  .header h1 .icon { font-size: 20px; }
+  .version-badge {
+    font-size: 10px;
+    color: #667eea;
+    background: rgba(102,126,234,0.15);
+    border: 1px solid rgba(102,126,234,0.3);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
   .header p {
-    font-size: 12px;
-    color: #888;
-    margin-top: 4px;
+    font-size: 11px;
+    color: #666;
+    margin-top: 5px;
   }
   .content { padding: 16px 20px; }
 
@@ -44,74 +59,189 @@
     color: #aaa;
     min-height: 60px;
   }
-  .status-bar .label { color: #666; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .status-bar .label { color: #555; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
   .status-bar .url { color: #4fc3f7; word-break: break-all; }
-  .status-bar.ready { border-color: #4fc3f7; }
+  .status-bar.ready { border-color: #333; }
   .status-bar.grabbing { border-color: #ff9800; }
   .status-bar.done { border-color: #4caf50; }
   .status-bar.error { border-color: #f44336; }
 
   .btn-group { display: flex; flex-direction: column; gap: 8px; }
+
+  .btn-row { display: flex; gap: 8px; }
+  .btn-row .btn { flex: 1; }
+
   .btn {
     width: 100%;
-    padding: 12px 16px;
+    padding: 11px 16px;
     border: none;
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    gap: 6px;
     transition: all 0.15s;
+    white-space: nowrap;
   }
-  .btn:hover { transform: translateY(-1px); }
+  .btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
   .btn:active { transform: translateY(0); }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; filter: none; }
 
   .btn-primary {
     background: linear-gradient(135deg, #667eea, #764ba2);
     color: #fff;
+    font-size: 14px;
+    padding: 13px 16px;
   }
-  .btn-primary:hover { background: linear-gradient(135deg, #764ba2, #667eea); }
 
-  .btn-secondary {
-    background: #1a1a2e;
-    color: #ccc;
-    border: 1px solid #333;
+  .btn-download {
+    background: #1e2a3a;
+    color: #4fc3f7;
+    border: 1px solid #2a4a6a;
   }
-  .btn-secondary:hover { background: #222; border-color: #555; }
+  .btn-download:hover { background: #243244; }
 
   .btn-github {
-    background: #238636;
-    color: #fff;
+    background: #1a2520;
+    color: #4caf50;
+    border: 1px solid #2a4a30;
   }
-  .btn-github:hover { background: #2ea043; }
+  .btn-github:hover { background: #1e2d24; }
+
+  .btn-netlify {
+    background: #1a2530;
+    color: #00d9b1;
+    border: 1px solid #00d9b133;
+  }
+  .btn-netlify:hover { background: #1e2d38; }
+
+  .btn-vercel {
+    background: #1a1a1a;
+    color: #e0e0e0;
+    border: 1px solid #444;
+  }
+  .btn-vercel:hover { background: #222; }
+
+  .btn-ghpages {
+    background: #1a1f2a;
+    color: #79b8ff;
+    border: 1px solid #79b8ff33;
+  }
+  .btn-ghpages:hover { background: #1e2535; }
+
+  .btn-schemas {
+    background: transparent;
+    color: #888;
+    border: 1px solid #2a2a2a;
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+  .btn-schemas:hover { background: #1a1a1a; color: #aaa; border-color: #444; }
+
+  .btn-source {
+    background: linear-gradient(135deg, #1a1a2e 0%, #0d2137 100%);
+    color: #a78bfa;
+    border: 1px solid rgba(167,139,250,0.3);
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+  .btn-source:hover { border-color: rgba(167,139,250,0.6); color: #c4b5fd; }
+  .btn-source:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── Source deploy panel ── */
+  .source-panel {
+    display: none;
+    margin-top: 12px;
+    background: #0d0d1a;
+    border: 1px solid rgba(167,139,250,0.25);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .source-panel.show { display: block; }
+  .source-panel-header {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #a78bfa;
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+  .source-panel-sub {
+    font-size: 10px;
+    color: #555;
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+  .source-btn-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .source-btn-grid .btn {
+    font-size: 11px;
+    padding: 8px 10px;
+  }
+  .btn-source-zip {
+    background: #1e2a3a;
+    color: #4fc3f7;
+    border: 1px solid #2a4a6a;
+  }
+  .btn-source-zip:hover { background: #243244; }
+  .btn-source-vercel {
+    background: #1a1a1a;
+    color: #e0e0e0;
+    border: 1px solid #444;
+  }
+  .btn-source-vercel:hover { background: #222; }
+  .btn-source-github {
+    background: #1a2520;
+    color: #4caf50;
+    border: 1px solid #2a4a30;
+  }
+  .btn-source-github:hover { background: #1e2d24; }
+  .btn-source-disabled {
+    background: #111;
+    color: #333;
+    border: 1px solid #1e1e1e;
+    cursor: not-allowed;
+    position: relative;
+  }
+  .btn-source-disabled:hover { filter: none; transform: none; }
+  .source-note {
+    font-size: 10px;
+    color: #444;
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+  .source-note span { color: #667eea; }
 
   .results {
     margin-top: 16px;
-    background: #1a1a1a;
-    border: 1px solid #333;
+    background: #141414;
+    border: 1px solid #2a2a2a;
     border-radius: 8px;
     padding: 12px;
     display: none;
   }
   .results.show { display: block; }
-  .results h3 { font-size: 13px; color: #4fc3f7; margin-bottom: 8px; }
+  .results h3 { font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
   .results .item {
     display: flex;
     justify-content: space-between;
-    padding: 4px 0;
+    padding: 5px 0;
     font-size: 12px;
-    border-bottom: 1px solid #222;
+    border-bottom: 1px solid #1e1e1e;
   }
   .results .item:last-child { border: none; }
-  .results .item .count { color: #4caf50; font-weight: 600; }
-  .results .item .label { color: #999; }
+  .results .item .count { color: #667eea; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .results .item .label { color: #777; }
 
   .progress {
-    height: 3px;
-    background: #222;
+    height: 2px;
+    background: #1e1e1e;
     border-radius: 2px;
     margin-top: 12px;
     overflow: hidden;
@@ -120,10 +250,10 @@
   .progress.show { display: block; }
   .progress .bar {
     height: 100%;
-    background: linear-gradient(90deg, #667eea, #764ba2);
+    background: linear-gradient(90deg, #667eea, #00d9b1);
     border-radius: 2px;
     width: 0%;
-    transition: width 0.3s;
+    transition: width 0.3s ease;
   }
 
   .schemas-preview {
@@ -131,10 +261,10 @@
     display: none;
   }
   .schemas-preview.show { display: block; }
-  .schemas-preview h3 { font-size: 13px; color: #ff9800; margin-bottom: 8px; }
+  .schemas-preview h3 { font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
   .schema-item {
     background: #111;
-    border: 1px solid #333;
+    border: 1px solid #2a2a2a;
     border-radius: 6px;
     padding: 8px;
     margin-bottom: 6px;
@@ -149,18 +279,18 @@
 
   .repo-picker {
     margin-top: 12px;
-    background: #1a1a1a;
-    border: 1px solid #444;
+    background: #141414;
+    border: 1px solid #2a2a2a;
     border-radius: 8px;
     padding: 12px;
     display: none;
   }
   .repo-picker.show { display: block; }
-  .repo-picker h3 { font-size: 13px; color: #4fc3f7; margin-bottom: 10px; }
+  .repo-picker h3 { font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
   .repo-search {
     width: 100%;
-    background: #111;
-    border: 1px solid #333;
+    background: #0f0f0f;
+    border: 1px solid #2a2a2a;
     border-radius: 6px;
     padding: 8px 10px;
     color: #e0e0e0;
@@ -170,11 +300,11 @@
   }
   .repo-search:focus { border-color: #667eea; }
   .repo-list {
-    max-height: 180px;
+    max-height: 160px;
     overflow-y: auto;
     margin-bottom: 8px;
     scrollbar-width: thin;
-    scrollbar-color: #333 transparent;
+    scrollbar-color: #2a2a2a transparent;
   }
   .repo-item {
     padding: 7px 10px;
@@ -186,18 +316,18 @@
     align-items: center;
     border: 1px solid transparent;
   }
-  .repo-item:hover { background: #252525; }
+  .repo-item:hover { background: #1a1a1a; }
   .repo-item--last { border-color: #667eea !important; margin-bottom: 4px; }
   .repo-name { color: #e0e0e0; }
   .repo-badge { font-size: 10px; color: #667eea; font-weight: 600; }
-  .repo-vis { font-size: 10px; color: #555; }
-  .repo-empty { color: #555; font-size: 12px; padding: 8px; }
-  .repo-divider { border: none; border-top: 1px solid #2a2a2a; margin: 8px 0; }
+  .repo-vis { font-size: 10px; color: #444; }
+  .repo-empty { color: #444; font-size: 12px; padding: 8px; }
+  .repo-divider { border: none; border-top: 1px solid #1e1e1e; margin: 8px 0; }
   .repo-new-row { display: flex; gap: 6px; }
   .repo-new-input {
     flex: 1;
-    background: #111;
-    border: 1px solid #333;
+    background: #0f0f0f;
+    border: 1px solid #2a2a2a;
     border-radius: 6px;
     padding: 8px 10px;
     color: #e0e0e0;
@@ -221,29 +351,35 @@
     width: 100%;
     margin-top: 8px;
     background: transparent;
-    border: 1px solid #2a2a2a;
+    border: 1px solid #1e1e1e;
     border-radius: 6px;
     padding: 6px;
-    color: #666;
+    color: #555;
     font-size: 12px;
     cursor: pointer;
   }
-  .btn-cancel-picker:hover { background: #1e1e1e; color: #aaa; }
+  .btn-cancel-picker:hover { background: #141414; color: #888; }
 
   .footer {
-    padding: 12px 20px;
-    border-top: 1px solid #222;
+    padding: 10px 20px;
+    border-top: 1px solid #1a1a1a;
     font-size: 10px;
-    color: #555;
+    color: #333;
     text-align: center;
+    letter-spacing: 0.5px;
   }
+  .footer a { color: #444; text-decoration: none; }
+  .footer a:hover { color: #667eea; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <h1><span class="icon">📦</span> GHL Project Saver</h1>
-  <p>Grab everything from GoHighLevel AI Studio</p>
+  <div class="header-top">
+    <h1><span class="icon">🔓</span> Keep My GHL</h1>
+    <span class="version-badge">v2.0</span>
+  </div>
+  <p>Export any AI Studio site — ZIP, GitHub, or live in 1 click</p>
 </div>
 
 <div class="content">
@@ -256,15 +392,59 @@
     <button class="btn btn-primary" id="btnGrab">
       📥 Grab Full Project
     </button>
-    <button class="btn btn-secondary" id="btnSchemas">
+    <div class="btn-row">
+      <button class="btn btn-download" id="btnDownload" disabled>
+        💾 ZIP
+      </button>
+      <button class="btn btn-github" id="btnGitHub" disabled>
+        🐙 GitHub
+      </button>
+      <button class="btn btn-ghpages" id="btnGHPages" disabled>
+        📄 GH Pages
+      </button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-netlify" id="btnNetlify" disabled>
+        🚀 Netlify
+      </button>
+      <button class="btn btn-vercel" id="btnVercel" disabled>
+        ▲ Vercel
+      </button>
+    </div>
+    <button class="btn btn-schemas" id="btnSchemas">
       🔍 Preview Schemas Only
     </button>
-    <button class="btn btn-secondary" id="btnDownload" disabled>
-      💾 Download ZIP
+    <button class="btn btn-source" id="btnSource">
+      📦 Export Source (Dev)
     </button>
-    <button class="btn btn-github" id="btnGitHub" disabled>
-      🐙 Push to GitHub
-    </button>
+    <div id="sourceHint" style="font-size:11px;color:#888;text-align:center;margin-top:4px;display:none;">
+      💡 If this fails, reload the AI Studio page — the interceptor captures files on load.
+    </div>
+  </div>
+
+  <!-- Source code deploy panel — shown after source capture -->
+  <div class="source-panel" id="sourcePanel">
+    <div class="source-panel-header">📦 Source Code Ready</div>
+    <div class="source-panel-sub" id="sourceFileCount">— files captured</div>
+    <div class="source-btn-grid">
+      <button class="btn btn-source-zip" id="btnSourceZip" onclick="sourceDownloadZip()">
+        💾 Download ZIP
+      </button>
+      <button class="btn btn-source-vercel" id="btnSourceVercel" onclick="sourceDeployVercel()">
+        ▲ Deploy to Vercel
+      </button>
+      <button class="btn btn-source-github" id="btnSourceGitHub" onclick="sourcePushGitHub()">
+        🐙 Push to GitHub
+      </button>
+      <button class="btn btn-source-disabled" title="Netlify needs pre-built files. Download ZIP → npm run build → drag dist/ to Netlify.">
+        🚀 Netlify (build first)
+      </button>
+    </div>
+    <div class="source-note">
+      <span>▲ Vercel</span> auto-builds your React/Vite project — live URL in ~60s, no terminal needed.<br>
+      <span>🐙 GitHub</span> pushes source so you can edit &amp; redeploy anytime.<br>
+      <span>💾 ZIP</span> saves locally — run <code>npm run build</code> then deploy the <code>dist/</code> folder anywhere.
+    </div>
   </div>
 
   <div class="progress" id="progress">
@@ -272,12 +452,12 @@
   </div>
 
   <div class="results" id="results">
-    <h3>📊 Captured</h3>
+    <h3>Captured</h3>
     <div id="resultsList"></div>
   </div>
 
   <div class="schemas-preview" id="schemasPreview">
-    <h3>🔍 Structured Data Found</h3>
+    <h3>Structured Data Found</h3>
     <div id="schemasList"></div>
   </div>
 
@@ -297,7 +477,7 @@
 </div>
 
 <div class="footer">
-  GHL Saver v1.2.0 &mdash; by 806 Growth
+  Keep My GHL &mdash; <a href="https://keepmyghl.com" target="_blank">keepmyghl.com</a>
 </div>
 
 <script src="lib/jszip.min.js"></script>

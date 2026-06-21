@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "GHL Project Saver",
-  "version": "1.2.0",
-  "description": "Save complete GoHighLevel AI Studio projects — full HTML, CSS, JS, images, fonts, schemas, and all assets. One-click export for auditing, GitHub, and re-deployment.",
+  "name": "Keep My GHL — AI Studio Exporter",
+  "version": "2.1.0",
+  "description": "Export any GoHighLevel AI Studio site to a ZIP, push to GitHub, or deploy to Netlify — in one click. Own your work forever.",
   "permissions": [
     "activeTab",
     "scripting",
@@ -30,6 +30,13 @@
     "128": "icons/icon128.png"
   },
   "content_scripts": [
+    {
+      "matches": ["*://*.gohighlevel.com/*", "*://*.leadconnectorhq.com/*"],
+      "js": ["interceptor.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false
+    },
     {
       "matches": ["*://*.gohighlevel.com/*", "*://*.leadconnectorhq.com/*"],
       "js": ["content.js"],
