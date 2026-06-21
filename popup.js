@@ -2037,11 +2037,15 @@ async function deployToCloudflare() {
 
     setStatus("Creating Cloudflare Pages project...", "grabbing");
     setProgress(10);
-    await fetch(`https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/pages/projects`, {
+    const createResp = await fetch(`https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/pages/projects`, {
       method: "POST",
       headers: { ...auth, "Content-Type": "application/json" },
       body: JSON.stringify({ name: cfProject, production_branch: "main" }),
     });
+    if (!createResp.ok && createResp.status !== 409) {
+      const e = await createResp.json();
+      throw new Error(e.errors?.[0]?.message || `Project creation failed (${createResp.status}) — check your Account ID and token`);
+    }
 
     setStatus("Building bundle...", "grabbing");
     setProgress(20);
@@ -2456,7 +2460,13 @@ async function crawlFunnel() {
   btn.textContent = "⏳ Crawling...";
 
   try {
-    const base = new URL(projectData.pageUrl || projectData.frameUrl || "");
+    const rawUrl = projectData.pageUrl || projectData.frameUrl || "";
+    if (!rawUrl.startsWith("http")) {
+      setStatus("Cannot crawl — no valid page URL on the grabbed project", "error");
+      btn.disabled = false; btn.textContent = "🕸️ Crawl Entire Funnel";
+      return;
+    }
+    const base = new URL(rawUrl);
     const baseHost = base.hostname;
 
     const sameDomainLinks = [...new Set(
@@ -2486,7 +2496,6 @@ async function crawlFunnel() {
     setStatus("Crawling funnel pages...", "grabbing");
     setProgress(5);
 
-    const JSZip = window.JSZip;
     const zip = new JSZip();
 
     const addPage = async (url, slug) => {
