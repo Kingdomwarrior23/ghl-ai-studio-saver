@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
+<title>Keep My GHL</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -800,13 +801,13 @@
     <div class="source-panel-header">📦 Source Code Ready</div>
     <div class="source-panel-sub" id="sourceFileCount">— files captured</div>
     <div class="source-btn-grid">
-      <button class="btn btn-source-zip" id="btnSourceZip" onclick="sourceDownloadZip()">
+      <button class="btn btn-source-zip" id="btnSourceZip">
         💾 Download ZIP
       </button>
-      <button class="btn btn-source-vercel" id="btnSourceVercel" onclick="sourceDeployVercel()">
+      <button class="btn btn-source-vercel" id="btnSourceVercel">
         ▲ Deploy to Vercel
       </button>
-      <button class="btn btn-source-github" id="btnSourceGitHub" onclick="sourcePushGitHub()">
+      <button class="btn btn-source-github" id="btnSourceGitHub">
         🐙 Push to GitHub
       </button>
       <button class="btn btn-source-disabled" title="Netlify needs pre-built files. Download ZIP → npm run build → drag dist/ to Netlify.">

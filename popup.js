@@ -4,6 +4,10 @@
 let projectData = null;
 
 // ── Utility ──────────────────────────────────────────────
+function escHtml(str) {
+  return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
 function setStatus(text, type) {
   const el = document.getElementById("status");
   el.className = "status-bar " + type;
@@ -57,8 +61,8 @@ function showSchemas(schemas) {
     .map(
       (s, i) =>
         `<div class="schema-item" data-idx="${i}" title="Click to copy">
-          <span class="type">@${s.type}</span><br>
-          ${s.preview}
+          <span class="type">@${escHtml(s.type)}</span><br>
+          ${escHtml(s.preview)}
         </div>`
     )
     .join("");
@@ -1807,6 +1811,10 @@ async function doSourcePush(githubToken, repo) {
 
   try {
     const fileEntries = Object.entries(files);
+    if (fileEntries.length === 0) {
+      setStatus("No source files to push — capture source files first", "error");
+      return;
+    }
     setStatus(`Pushing ${fileEntries.length} source files to ${repo}...`, "grabbing");
 
     let repoResp = await fetch(`https://api.github.com/repos/${repo}`, { headers });
@@ -1954,7 +1962,12 @@ async function sourceDeployVercel() {
       }),
     });
     const deploy = await deployResp.json();
-    if (!deployResp.ok) throw new Error(deploy.error?.message || "Deploy failed");
+    if (!deployResp.ok) {
+      if (deployResp.status === 401 || deployResp.status === 403) {
+        await chrome.storage.local.remove(["vercelToken"]);
+      }
+      throw new Error(deploy.error?.message || "Deploy failed");
+    }
 
     setProgress(80);
     setStatus("Build running on Vercel (takes ~60s)...", "grabbing");
@@ -2312,8 +2325,20 @@ async function saveSnapshot(data) {
   const { snapshots = [] } = await chrome.storage.local.get(["snapshots"]);
   snapshots.unshift(snap);
   if (snapshots.length > 25) snapshots.splice(25);
-  await chrome.storage.local.set({ snapshots });
-  renderSnapList(snapshots);
+  try {
+    await chrome.storage.local.set({ snapshots });
+    renderSnapList(snapshots);
+  } catch (e) {
+    // Storage quota exceeded — drop oldest snapshot and retry once
+    snapshots.splice(10);
+    try {
+      await chrome.storage.local.set({ snapshots });
+      renderSnapList(snapshots);
+      setStatus("Storage nearly full — oldest snapshots trimmed", "ready");
+    } catch {
+      setStatus("Version history full — clear old snapshots to continue saving", "error");
+    }
+  }
 }
 
 async function loadSnapshots() {
@@ -2331,7 +2356,7 @@ function renderSnapList(snapshots) {
   list.innerHTML = snapshots.map(s => {
     const dt = new Date(s.grabbedAt);
     const label = dt.toLocaleDateString() + " " + dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    const title = (s.title || "Untitled").substring(0, 30);
+    const title = escHtml((s.title || "Untitled").substring(0, 30));
     const badge = s.auto ? '<span class="snap-auto-badge">auto</span>' : "";
     const kb = Math.round(s.htmlLength / 1024);
     return `<div class="snap-item">
@@ -2340,8 +2365,8 @@ function renderSnapList(snapshots) {
         <span>${label} &middot; ${kb}KB &middot; ${s.counts.css}css ${s.counts.js}js ${s.counts.images}img</span>
       </div>
       <div class="snap-acts">
-        <button class="snap-btn" onclick="restoreSnapshot(${s.id})">Restore</button>
-        <button class="snap-btn del" onclick="deleteSnapshot(${s.id})">✕</button>
+        <button class="snap-btn" data-action="restore" data-id="${s.id}">Restore</button>
+        <button class="snap-btn del" data-action="delete" data-id="${s.id}">✕</button>
       </div>
     </div>`;
   }).join("");
@@ -2510,7 +2535,7 @@ function extractBrandKit() {
 
   const colorsEl = document.getElementById("brandColors");
   colorsEl.innerHTML = colors.length
-    ? colors.map(c => `<div class="swatch" style="background:${c}" title="${c}" onclick="navigator.clipboard.writeText('${c}')"></div>`).join("")
+    ? colors.map(c => `<div class="swatch" style="background:${escHtml(c)}" title="${escHtml(c)}" data-color="${escHtml(c)}"></div>`).join("")
     : '<span style="color:#333;font-size:10px">No colors extracted from inline CSS</span>';
 
   const fontsEl = document.getElementById("brandFonts");
@@ -2670,6 +2695,7 @@ async function crawlFunnel() {
 
     if (sameDomainLinks.length === 0) {
       setStatus("No same-domain links found to crawl", "error");
+      btn.disabled = false; btn.textContent = "🕸️ Crawl Entire Funnel";
       return;
     }
 
@@ -2761,6 +2787,25 @@ function initSectionToggles() {
     document.getElementById("compliancePanel").classList.remove("show"));
 
   document.getElementById("brandExport").addEventListener("click", exportBrandKit);
+
+  // Permanent event delegation for snapshot Restore/Delete — wired once here,
+  // survives re-renders of the snap list (avoids MV3 CSP block on inline onclick via innerHTML)
+  document.getElementById("snapList").addEventListener("click", async e => {
+    const btn = e.target.closest("[data-action]");
+    if (!btn) return;
+    const id = parseInt(btn.dataset.id);
+    if (btn.dataset.action === "restore") await restoreSnapshot(id);
+    else if (btn.dataset.action === "delete") await deleteSnapshot(id);
+  });
+
+  // Permanent event delegation for brand kit color swatches
+  document.getElementById("brandColors").addEventListener("click", e => {
+    const swatch = e.target.closest("[data-color]");
+    if (!swatch) return;
+    navigator.clipboard.writeText(swatch.dataset.color).catch(() => {});
+    swatch.style.outline = "2px solid #4caf50";
+    setTimeout(() => (swatch.style.outline = ""), 800);
+  });
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -2785,6 +2830,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("btnGDPR").addEventListener("click", runGDPRCheck);
   document.getElementById("btnScrub").addEventListener("click", scrubTrackingScripts);
   document.getElementById("btnCrawl").addEventListener("click", crawlFunnel);
+  document.getElementById("btnSourceZip").addEventListener("click", sourceDownloadZip);
+  document.getElementById("btnSourceVercel").addEventListener("click", sourceDeployVercel);
+  document.getElementById("btnSourceGitHub").addEventListener("click", sourcePushGitHub);
 
   initSectionToggles();
   initAutoBackup();
