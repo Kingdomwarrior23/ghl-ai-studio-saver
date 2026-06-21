@@ -899,16 +899,16 @@ function showRepoPicker(token, repos, lastRepo) {
 
     // Last-used pinned at top (only when not filtering)
     if (!q && lastRepo) {
-      html += `<div class="repo-item repo-item--last" data-repo="${lastRepo}">
-        <span class="repo-name">${lastRepo}</span>
+      html += `<div class="repo-item repo-item--last" data-repo="${escHtml(lastRepo)}">
+        <span class="repo-name">${escHtml(lastRepo)}</span>
         <span class="repo-badge">last used</span>
       </div>`;
     }
 
     filtered.forEach(r => {
       if (!q && r.full_name === lastRepo) return; // already pinned
-      html += `<div class="repo-item" data-repo="${r.full_name}">
-        <span class="repo-name">${r.full_name}</span>
+      html += `<div class="repo-item" data-repo="${escHtml(r.full_name)}">
+        <span class="repo-name">${escHtml(r.full_name)}</span>
         <span class="repo-vis">${r.private ? "private" : "public"}</span>
       </div>`;
     });
@@ -1739,14 +1739,14 @@ function showSourceRepoPicker(token, repos, lastRepo) {
     const filtered = repos.filter(r => !q || r.full_name.toLowerCase().includes(q));
     let html = "";
     if (!q && lastRepo) {
-      html += `<div class="repo-item repo-item--last" data-repo="${lastRepo}">
-        <span class="repo-name">${lastRepo}</span><span class="repo-badge">last used</span>
+      html += `<div class="repo-item repo-item--last" data-repo="${escHtml(lastRepo)}">
+        <span class="repo-name">${escHtml(lastRepo)}</span><span class="repo-badge">last used</span>
       </div>`;
     }
     filtered.forEach(r => {
       if (!q && r.full_name === lastRepo) return;
-      html += `<div class="repo-item" data-repo="${r.full_name}">
-        <span class="repo-name">${r.full_name}</span>
+      html += `<div class="repo-item" data-repo="${escHtml(r.full_name)}">
+        <span class="repo-name">${escHtml(r.full_name)}</span>
         <span class="repo-vis">${r.private ? "private" : "public"}</span>
       </div>`;
     });
