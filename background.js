@@ -99,7 +99,7 @@ chrome.alarms.onAlarm.addListener(async alarm => {
     if (snapshots.length > 25) snapshots.splice(25);
     await chrome.storage.local.set({ snapshots });
   } catch (e) {
-    console.log("[Keep My GHL] Auto-backup failed:", e.message);
+    console.log("[Free My GHL] Auto-backup failed:", e.message);
   }
 });
 

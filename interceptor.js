@@ -15,7 +15,7 @@
 
   if (!isStudioPage()) return;
 
-  console.log("[Keep My GHL] Interceptor active — watching for project file payload");
+  console.log("[Free My GHL] Interceptor active — watching for project file payload");
 
   // ── Heuristic: does this JSON look like a project file tree? ──────────
   function extractFiles(data) {
@@ -88,7 +88,7 @@
     const files = extractFiles(data);
     if (!files) return;
 
-    console.log(`[Keep My GHL] ✅ Captured ${Object.keys(files).length} source files from: ${url}`);
+    console.log(`[Free My GHL] ✅ Captured ${Object.keys(files).length} source files from: ${url}`);
     window.__capturedSourceFiles = files;
     window.__capturedSourceUrl = url;
 
@@ -142,7 +142,7 @@
       if (d.type === "bolt:files" || d.type === "wc:files" || d.type === "project:files") {
         const files = extractFiles(d.payload || d.files || d.data || d);
         if (files) {
-          console.log(`[Keep My GHL] ✅ Captured ${Object.keys(files).length} files via postMessage (${d.type})`);
+          console.log(`[Free My GHL] ✅ Captured ${Object.keys(files).length} files via postMessage (${d.type})`);
           window.__capturedSourceFiles = files;
         }
       }
@@ -150,7 +150,7 @@
       if (!window.__capturedSourceFiles) {
         const files = extractFiles(d);
         if (files) {
-          console.log(`[Keep My GHL] ✅ Captured ${Object.keys(files).length} files via postMessage`);
+          console.log(`[Free My GHL] ✅ Captured ${Object.keys(files).length} files via postMessage`);
           window.__capturedSourceFiles = files;
         }
       }

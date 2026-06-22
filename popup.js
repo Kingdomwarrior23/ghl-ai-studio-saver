@@ -840,7 +840,7 @@ Upload all files keeping the folder structure intact. Point your domain to the f
 ${(projectData.schemas || []).map(s => `- @${s.type}`).join("\n") || "None found"}
 
 ---
-Exported with [Keep My GHL](https://ownmyghl.ignitiv.io) — Own your GHL work forever.
+Exported with [Free My GHL](https://freemyghl.com) — Own your GHL work forever.
 `);
 
     setProgress(90);
@@ -1244,7 +1244,7 @@ async function deployToNetlify() {
 
   } catch (err) {
     setStatus("Netlify failed: " + err.message, "error");
-    console.error("[Keep My GHL] Netlify error:", err.message);
+    console.error("[Free My GHL] Netlify error:", err.message);
   } finally {
     btn.disabled = false;
     btn.textContent = "🚀 Netlify";
@@ -1336,7 +1336,7 @@ async function deployToVercel() {
 
   } catch (err) {
     setStatus("Vercel deploy failed: " + err.message, "error");
-    console.error("[Keep My GHL] Vercel error:", err.message);
+    console.error("[Free My GHL] Vercel error:", err.message);
   } finally {
     btn.disabled = false;
     btn.textContent = "▲ Vercel";
@@ -1444,7 +1444,7 @@ async function deployToGHPages() {
 
   } catch (err) {
     setStatus("GH Pages failed: " + err.message, "error");
-    console.error("[Keep My GHL] GH Pages error:", err.message);
+    console.error("[Free My GHL] GH Pages error:", err.message);
   } finally {
     btn.disabled = false;
     btn.textContent = "📄 GH Pages";
@@ -1676,7 +1676,7 @@ npx vercel
 
   } catch (err) {
     setStatus("Source export error: " + err.message, "error");
-    console.error("[Keep My GHL] Source export error:", err);
+    console.error("[Free My GHL] Source export error:", err);
   } finally {
     btn.disabled = false;
     btn.textContent = "📦 Export Source (Dev)";
@@ -2075,7 +2075,7 @@ function extractStudioFiles() {
           return resolve({ files, projectId, method: "WebContainers FS" });
         }
       } catch (e) {
-        console.log("[Keep My GHL] WebContainers method failed:", e.message);
+        console.log("[Free My GHL] WebContainers method failed:", e.message);
       }
     }
 
@@ -2173,7 +2173,7 @@ function extractStudioFiles() {
         db.close();
       }
     } catch (e) {
-      console.log("[Keep My GHL] IndexedDB scan failed:", e.message);
+      console.log("[Free My GHL] IndexedDB scan failed:", e.message);
     }
 
     // ── Method 4: Scan window globals for file maps ────────
@@ -2298,7 +2298,7 @@ async function deployToCloudflare() {
 
   } catch (err) {
     setStatus("Cloudflare failed: " + err.message, "error");
-    console.error("[Keep My GHL] Cloudflare error:", err);
+    console.error("[Free My GHL] Cloudflare error:", err);
   } finally {
     btn.disabled = false;
     btn.textContent = "☁️ CF Pages";
@@ -2754,7 +2754,7 @@ async function crawlFunnel() {
 
   } catch (err) {
     setStatus("Crawl failed: " + err.message, "error");
-    console.error("[Keep My GHL] Crawl error:", err);
+    console.error("[Free My GHL] Crawl error:", err);
   } finally {
     btn.disabled = false;
     btn.textContent = "🕸️ Crawl Entire Funnel";
