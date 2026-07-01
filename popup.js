@@ -241,6 +241,60 @@ function parseHtmlToData(html, baseUrl) {
   return data;
 }
 
+// ── Legacy funnel/website/blog crawl — orchestrated from the extension,
+// NOT an in-page loop, because each step is a REAL navigation that would
+// destroy an in-page script's state. Opens each route in its own background
+// tab, captures it, closes it. Slower than crawler.js's SPA crawl but the
+// only approach that survives real page loads.
+async function crawlLegacyPages(originUrl, routes) {
+  const pages = [];
+  const origin = new URL(originUrl).origin;
+
+  for (const route of routes) {
+    const fullUrl = origin + route;
+    let tab;
+    try {
+      tab = await chrome.tabs.create({ url: fullUrl, active: false });
+
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error("Page load timed out: " + fullUrl)), 15000);
+        function listener(tabId, info) {
+          if (tabId === tab.id && info.status === "complete") {
+            clearTimeout(timeout);
+            chrome.tabs.onUpdated.removeListener(listener);
+            resolve();
+          }
+        }
+        chrome.tabs.onUpdated.addListener(listener);
+      });
+
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ["shared-asset-collector.js", "content.js"],
+      });
+
+      const resp = await new Promise((resolve) => {
+        const timer = setTimeout(() => resolve(null), 8000);
+        chrome.tabs.sendMessage(tab.id, { action: "grabProject" }, (r) => {
+          clearTimeout(timer);
+          resolve(chrome.runtime.lastError ? null : r);
+        });
+      });
+
+      if (resp?.success) {
+        const slug = route === "/" ? "index" : route.replace(/^\//, "").replace(/\//g, "-");
+        pages.push({ route, slug, html: resp.data.fullHtml, title: resp.data.pageTitle, _assets: resp.data });
+      }
+    } catch (e) {
+      console.warn("[FreeMyGHL] Legacy crawl failed for route:", route, e.message);
+    } finally {
+      if (tab) await chrome.tabs.remove(tab.id).catch(() => {});
+    }
+  }
+
+  return pages;
+}
+
 // ── Inject content script and extract ────────────────────
 async function grabProject() {
   const btn = document.getElementById("btnGrab");
@@ -338,8 +392,39 @@ async function grabProject() {
     if (projectData.contentScore < 0) {
       const withIframe = allResponses.find(r => r.previewIframeUrl);
       const previewSrc = withIframe?.previewIframeUrl || null;
+      const isLegacy = !!withIframe?.isLegacyBuilderShell;
 
-      if (previewSrc) {
+      // ── Legacy funnel/website/blog builder: tab-orchestrated multi-page crawl ──
+      // Distinct from AI Studio below because legacy builder pages are a
+      // traditional multi-page site (real navigation per route), not an SPA
+      // crawler.js can drive via client-side routing.
+      if (previewSrc && isLegacy) {
+        setStatus("Legacy GHL builder detected — crawling all pages...", "grabbing");
+        setProgress(40);
+
+        // Discover routes from the preview page itself (not the builder shell).
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ["shared-asset-collector.js", "content.js"],
+        });
+        const routesResp = await new Promise(resolve => {
+          chrome.tabs.sendMessage(tab.id, { action: "collectRoutes" }, r => resolve(chrome.runtime.lastError ? null : r));
+        });
+        const routes = routesResp?.success && routesResp.routes?.length ? routesResp.routes : ["/"];
+
+        const legacyPages = await crawlLegacyPages(previewSrc, routes);
+        if (legacyPages.length > 0) {
+          setStatus(`Captured ${legacyPages.length} pages`, "grabbing");
+          const homePage = legacyPages.find(p => p.route === "/") || legacyPages[0];
+          const parsed = parseHtmlToData(homePage.html, previewSrc);
+          parsed.pageUrl = tab.url;
+          parsed.grabbedAt = new Date().toISOString();
+          parsed._multiPage = legacyPages;
+          projectData = parsed;
+        } else {
+          console.warn("[FreeMyGHL] Legacy crawl found no pages; keeping builder-shell capture as-is.");
+        }
+      } else if (previewSrc) {
         setStatus("GHL AI Studio detected — crawling all pages...", "grabbing");
         setProgress(40);
 

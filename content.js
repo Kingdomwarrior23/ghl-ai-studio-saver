@@ -26,12 +26,37 @@
       } catch (err) {
         sendResponse({ success: false, error: err.message });
       }
+    } else if (msg.action === "collectRoutes") {
+      try {
+        const routes = collectSameOriginRoutes();
+        sendResponse({ success: true, routes });
+      } catch (err) {
+        sendResponse({ success: false, error: err.message, routes: [] });
+      }
     }
     return true;
   };
 
   window.__ghlSaverHandler = handler;
   chrome.runtime.onMessage.addListener(handler);
+
+  // Standalone same-origin anchor scan for legacy (non-SPA) GHL builder pages.
+  // Used to discover routes to crawl via tab-based orchestration in popup.js,
+  // since legacy funnel/website/blog pages are real multi-page sites, not an
+  // SPA that crawler.js's client-side route driver can walk.
+  function collectSameOriginRoutes() {
+    const origin = window.location.origin;
+    const seen = new Set([window.location.pathname]);
+    document.querySelectorAll("a[href]").forEach((a) => {
+      try {
+        const url = new URL(a.href, origin);
+        if (url.origin !== origin) return;
+        if (!url.pathname || url.pathname === "#") return;
+        seen.add(url.pathname);
+      } catch {}
+    });
+    return [...seen].sort();
+  }
 
   function extractEverything() {
     const data = {};
@@ -89,6 +114,23 @@
       if (data.previewIframeUrl) {
         console.log("[GHL Saver] Builder shell found preview iframe:", data.previewIframeUrl);
       }
+    }
+
+    // Legacy funnel/website/blog builder shell (distinct editor UI from Vibe).
+    // Reliable URL signal: legacy builder pages live at /v2/location/.../funnels-builder/...
+    // or /v2/location/.../websites-builder/... or /v2/location/.../blogs-builder/...
+    // NOTE: this exact URL pattern is NOT confirmed against a live GHL account —
+    // it's a best-guess from GHL's naming conventions. Flagged explicitly in the
+    // plan as needing verification against a real account before being trusted.
+    const isLegacyBuilderShell = /\/(funnels|websites|blogs)-builder\//.test(window.location.pathname);
+    if (isLegacyBuilderShell) {
+      data.contentScore = -999;
+      data.isLegacyBuilderShell = true;
+      // Legacy builder renders the real page inside a same-origin iframe
+      // (unlike Vibe's cross-origin vibepreview.com) — find it the same way.
+      const allIframes = Array.from(doc.querySelectorAll("iframe"));
+      const previewFrame = allIframes.find((f) => f.src && f.src.length > 10 && !f.src.startsWith("about:"));
+      data.previewIframeUrl = previewFrame ? previewFrame.src : null;
     }
 
     // ── 1. Full rendered HTML ────────────────────────────
