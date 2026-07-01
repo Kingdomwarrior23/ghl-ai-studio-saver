@@ -60,14 +60,17 @@
       + hasNav * 2;
 
     // Detect and hard-penalize the GHL Vibe builder shell.
-    // Primary signal: URL path — Vibe builder is always at /v2/location/.../vibe/projects/...
-    // Fallback: DOM attributes (may change across GHL releases).
-    const isVibeBuilderShell = !!(
-      window.location.pathname.includes("/vibe/projects/") ||
-      doc.querySelector('[data-testid="builder-view"]') ||
-      doc.querySelector('[data-testid="top-nav-bar"]') ||
-      doc.querySelector('[data-v-b3a7a1a6]')
-    );
+    // Primary signal: URL path (reliable — Vibe builder is always at this path).
+    // Secondary: require >=2 DOM markers together, not just 1, so a single
+    // transiently-rendered marker during preview-frame load can't misfire.
+    const urlSaysShell = window.location.pathname.includes("/vibe/projects/");
+    const domMarkers = [
+      !!doc.querySelector('[data-testid="builder-view"]'),
+      !!doc.querySelector('[data-testid="top-nav-bar"]'),
+      !!doc.querySelector('[data-v-b3a7a1a6]'),
+    ];
+    const domMarkerCount = domMarkers.filter(Boolean).length;
+    const isVibeBuilderShell = urlSaysShell || domMarkerCount >= 2;
     if (isVibeBuilderShell) {
       data.contentScore = -999;
       // Find the preview iframe URL so popup can fetch it directly as a fallback
