@@ -369,6 +369,15 @@ async function grabProject() {
                   func: () => window.__fmghlCrawlResult || null,
                 });
                 if (probe?.[0]?.result) return probe[0].result;
+
+                try {
+                  const { __fmghl_crawl_progress: progress } = await chrome.storage.local.get(["__fmghl_crawl_progress"]);
+                  if (progress?.total > 0) {
+                    setStatus(`Captured ${progress.done}/${progress.total} pages...`, "grabbing");
+                    setProgress(40 + Math.round((progress.done / progress.total) * 45));
+                  }
+                } catch {}
+
                 await new Promise(r => setTimeout(r, 500));
               }
               return null;
