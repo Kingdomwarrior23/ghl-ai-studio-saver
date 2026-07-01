@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FreeMyGHL — GHL Site Exporter",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Export, backup & deploy any GoHighLevel, Framer, Webflow, Lovable or AI-built site. GitHub, Netlify, Vercel, Cloudflare Pages — one click. Own your work forever.",
   "permissions": [
     "activeTab",
