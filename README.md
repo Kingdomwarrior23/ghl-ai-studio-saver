@@ -1,4 +1,4 @@
-# 🔓 Keep My GHL — Site Exporter
+# 🔓 Free My GHL — Site Exporter
 
 Export, backup, audit & deploy any GoHighLevel AI Studio site — or any Framer, Webflow, Lovable, Base44, or AI-built page. One click. Own your work forever.
 
@@ -49,7 +49,7 @@ Auto-backup runs on a schedule (1h / 6h / Daily / Weekly). Up to 25 snapshots st
 ## Usage
 
 1. Open any GoHighLevel page (or Framer, Webflow, Lovable, etc.) in Chrome
-2. Click the **Keep My GHL** icon in your toolbar
+2. Click the **Free My GHL** icon in your toolbar
 3. Click **"📥 Grab Full Project"**
 4. Use any deploy button, or open the Tools panel for audit/brand/compliance features
 
