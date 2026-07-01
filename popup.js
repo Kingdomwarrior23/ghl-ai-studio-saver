@@ -1212,6 +1212,71 @@ function toBase64(str) {
   return btoa(binary);
 }
 
+// ── Bulk GitHub push via the Git Data API ───────────────
+// One commit for the whole push (blob → tree → commit → ref) instead of
+// the old Contents-API GET+PUT-per-file loop, which made N separate commits
+// and risked secondary rate limits on large multi-page captures.
+// Mirrors the exact sequence deployToGHPages() already uses for gh-pages,
+// generalized to any target branch. `files` is an array of
+// { path, binary, base64, content }, matching what buildBundle() produces.
+async function commitFilesViaGitDataApi(repo, branch, files, headers, commitMessage, onProgress) {
+  // 1. Get the current commit SHA for the target branch (or null if branch doesn't exist yet)
+  const refUrl = `https://api.github.com/repos/${repo}/git/refs/heads/${branch}`;
+  const checkRef = await fetch(refUrl, { headers });
+  const baseCommitSha = checkRef.ok ? (await checkRef.json()).object.sha : null;
+  const baseTreeSha = baseCommitSha
+    ? (await fetch(`https://api.github.com/repos/${repo}/git/commits/${baseCommitSha}`, { headers }).then(r => r.json())).tree.sha
+    : null;
+
+  // 2. Upload all blobs in parallel (independent objects, same as deployToGHPages)
+  onProgress?.(`Uploading ${files.length} file blobs...`);
+  const treeEntries = await Promise.all(files.map(async f => {
+    const body = f.binary
+      ? JSON.stringify({ content: f.base64, encoding: "base64" })
+      : JSON.stringify({ content: f.content || "", encoding: "utf-8" });
+    const blobResp = await fetch(`https://api.github.com/repos/${repo}/git/blobs`, {
+      method: "POST", headers, body,
+    });
+    if (!blobResp.ok) { const e = await blobResp.json(); throw new Error(`Blob failed for ${f.path}: ${e.message}`); }
+    const { sha } = await blobResp.json();
+    return { path: f.path, mode: "100644", type: "blob", sha };
+  }));
+
+  // 3. Create a tree (base_tree layers this push on top of the branch's existing files)
+  onProgress?.("Building tree...");
+  const treeResp = await fetch(`https://api.github.com/repos/${repo}/git/trees`, {
+    method: "POST", headers,
+    body: JSON.stringify({ tree: treeEntries, ...(baseTreeSha && { base_tree: baseTreeSha }) }),
+  });
+  if (!treeResp.ok) { const e = await treeResp.json(); throw new Error(e.message); }
+  const treeSha = (await treeResp.json()).sha;
+
+  // 4. Create the commit
+  onProgress?.("Committing...");
+  const commitResp = await fetch(`https://api.github.com/repos/${repo}/git/commits`, {
+    method: "POST", headers,
+    body: JSON.stringify({
+      message: commitMessage,
+      tree: treeSha,
+      ...(baseCommitSha && { parents: [baseCommitSha] }),
+    }),
+  });
+  if (!commitResp.ok) { const e = await commitResp.json(); throw new Error(e.message); }
+  const newCommitSha = (await commitResp.json()).sha;
+
+  // 5. Point the branch ref at the new commit (create it if the branch is new)
+  if (baseCommitSha) {
+    await fetch(refUrl, { method: "PATCH", headers, body: JSON.stringify({ sha: newCommitSha, force: false }) });
+  } else {
+    await fetch(`https://api.github.com/repos/${repo}/git/refs`, {
+      method: "POST", headers,
+      body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: newCommitSha }),
+    });
+  }
+
+  return newCommitSha;
+}
+
 // ── Repo Picker ──────────────────────────────────────────
 async function fetchUserRepos(token) {
   const resp = await fetch(
@@ -1342,6 +1407,7 @@ async function doPush(githubToken, repo) {
 
     // ── Ensure repo exists; auto-create with auto_init if needed ────
     let repoResp = await fetch(`https://api.github.com/repos/${repo}`, { headers });
+    let repoMeta = null;
     if (!repoResp.ok && repoResp.status === 404) {
       setStatus("Creating repo on GitHub...", "grabbing");
       const createResp = await fetch("https://api.github.com/user/repos", {
@@ -1361,49 +1427,33 @@ async function doPush(githubToken, repo) {
       // Brief wait for GitHub to initialize the repo
       await new Promise(r => setTimeout(r, 1500));
       repoResp = await fetch(`https://api.github.com/repos/${repo}`, { headers });
+      if (!repoResp.ok) {
+        const e = await repoResp.json();
+        throw new Error(`GitHub error (${repoResp.status}): ${e.message}`);
+      }
+      repoMeta = await repoResp.json();
     } else if (!repoResp.ok) {
       const e = await repoResp.json();
       throw new Error(`GitHub error (${repoResp.status}): ${e.message}`);
+    } else {
+      repoMeta = await repoResp.json();
     }
+
+    const defaultBranch = repoMeta?.default_branch || "main";
 
     setProgress(20);
 
-    // ── Use Contents API — works on empty and non-empty repos ────────
-    // GET existing file SHA first (needed for updates), then PUT.
+    // ── Git Data API — one commit for the whole push instead of the old
+    // Contents-API GET+PUT-per-file loop (N commits, sequential, rate-limit risk).
     setStatus(`Pushing ${files.length} files...`, "grabbing");
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-      setStatus(`Pushing ${f.path} (${i + 1}/${files.length})...`, "grabbing");
-
-      // Check if file already exists (need its SHA to update)
-      let existingSha = null;
-      const getResp = await fetch(`https://api.github.com/repos/${repo}/contents/${f.path}`, { headers });
-      if (getResp.ok) {
-        existingSha = (await getResp.json()).sha;
-      }
-
-      const fileContent = f.binary ? f.base64 : toBase64(f.content || "");
-      const putBody = {
-        message: existingSha
-          ? `GHL Saver: update ${f.path}`
-          : `GHL Saver: add ${f.path}`,
-        content: fileContent,
-        ...(existingSha && { sha: existingSha }),
-      };
-
-      const putResp = await fetch(`https://api.github.com/repos/${repo}/contents/${f.path}`, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify(putBody),
-      });
-
-      if (!putResp.ok) {
-        const e = await putResp.json();
-        throw new Error(`Failed to push ${f.path}: ${e.message}`);
-      }
-
-      setProgress(20 + Math.round(((i + 1) / files.length) * 75));
-    }
+    await commitFilesViaGitDataApi(
+      repo,
+      defaultBranch,
+      files,
+      headers,
+      `FreeMyGHL: push ${files.length} files`,
+      msg => setStatus(msg, "grabbing")
+    );
 
     setProgress(100);
     setStatus(`Pushed ${files.length} files to ${repo}`, "done");
@@ -2153,6 +2203,7 @@ async function doSourcePush(githubToken, repo) {
     setStatus(`Pushing ${fileEntries.length} source files to ${repo}...`, "grabbing");
 
     let repoResp = await fetch(`https://api.github.com/repos/${repo}`, { headers });
+    let repoMeta = null;
     if (!repoResp.ok && repoResp.status === 404) {
       setStatus("Creating repo on GitHub...", "grabbing");
       const createResp = await fetch("https://api.github.com/user/repos", {
@@ -2170,38 +2221,40 @@ async function doSourcePush(githubToken, repo) {
         throw new Error(`Could not create repo: ${e.message}`);
       }
       await new Promise(r => setTimeout(r, 1500));
+      repoResp = await fetch(`https://api.github.com/repos/${repo}`, { headers });
+      if (!repoResp.ok) {
+        const e = await repoResp.json();
+        throw new Error(`GitHub error (${repoResp.status}): ${e.message}`);
+      }
+      repoMeta = await repoResp.json();
     } else if (!repoResp.ok) {
       const e = await repoResp.json();
       throw new Error(`GitHub error (${repoResp.status}): ${e.message}`);
+    } else {
+      repoMeta = await repoResp.json();
     }
+
+    const defaultBranch = repoMeta?.default_branch || "main";
 
     setProgress(15);
 
-    for (let i = 0; i < fileEntries.length; i++) {
-      const [path, content] = fileEntries[i];
-      const cleanPath = path.replace(/^\//, "");
-      setStatus(`Pushing ${cleanPath} (${i + 1}/${fileEntries.length})...`, "grabbing");
+    // ── Git Data API — one commit for the whole source export instead of
+    // the old Contents-API GET+PUT-per-file loop.
+    const gitDataFiles = fileEntries.map(([path, content]) => ({
+      path: path.replace(/^\//, ""),
+      binary: typeof content !== "string",
+      base64: typeof content !== "string" ? content : undefined,
+      content: typeof content === "string" ? content : undefined,
+    }));
 
-      let existingSha = null;
-      const getResp = await fetch(`https://api.github.com/repos/${repo}/contents/${cleanPath}`, { headers });
-      if (getResp.ok) existingSha = (await getResp.json()).sha;
-
-      const encoded = typeof content === "string" ? toBase64(content) : content;
-      const putResp = await fetch(`https://api.github.com/repos/${repo}/contents/${cleanPath}`, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify({
-          message: existingSha ? `update ${cleanPath}` : `add ${cleanPath}`,
-          content: encoded,
-          ...(existingSha && { sha: existingSha }),
-        }),
-      });
-      if (!putResp.ok) {
-        const e = await putResp.json();
-        throw new Error(`Failed to push ${cleanPath}: ${e.message}`);
-      }
-      setProgress(15 + Math.round(((i + 1) / fileEntries.length) * 80));
-    }
+    await commitFilesViaGitDataApi(
+      repo,
+      defaultBranch,
+      gitDataFiles,
+      headers,
+      `FreeMyGHL source export: push ${fileEntries.length} files`,
+      msg => setStatus(msg, "grabbing")
+    );
 
     setProgress(100);
     setStatus(`✅ Pushed ${fileEntries.length} source files to ${repo}`, "done");
