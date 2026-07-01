@@ -195,6 +195,10 @@ function parseHtmlToData(html, baseUrl) {
   data.jsCount = data.scripts.length;
 
   // Images
+  // Note: unlike content.js's live-DOM capture (shared-asset-collector.js), this doc is a
+  // DOMParser-parsed string with no layout/render pass, so getComputedStyle() can't recover
+  // CSS background-images here — that gap is a permanent limitation of this fallback path,
+  // not an oversight, and should not be "fixed" into a no-op later.
   data.images = [];
   const seenSrcs = new Set();
   doc.querySelectorAll("img").forEach(img => {
@@ -202,6 +206,13 @@ function parseHtmlToData(html, baseUrl) {
     if (src && !seenSrcs.has(src)) {
       seenSrcs.add(src);
       data.images.push({ src, alt: img.alt || "", width: null, height: null, loading: img.loading || "eager" });
+    }
+  });
+  doc.querySelectorAll("svg").forEach((svg, i) => {
+    const key = "svg-" + i;
+    if (!seenSrcs.has(key)) {
+      seenSrcs.add(key);
+      data.images.push({ src: key, alt: svg.getAttribute("aria-label") || "svg", width: null, height: null, svgContent: svg.outerHTML });
     }
   });
   data.imageCount = data.images.length;
@@ -213,6 +224,27 @@ function parseHtmlToData(html, baseUrl) {
     if (href.includes("fonts.googleapis") || href.includes("font")) {
       data.fonts.push({ url: abs(href), type: "google-fonts" });
     }
+  });
+  // @font-face rules from EXTERNAL stylesheets can't be recovered here: this doc's
+  // doc.styleSheets/CSSOM is not populated for a DOMParser-parsed string (external CSS
+  // was never fetched/parsed by a CSS engine), and parseHtmlToData() only ever receives
+  // the raw HTML string (see fetchUrl usage) — the external CSS text itself isn't
+  // available at this point in the flow. Only inline <style> text is scannable, so we
+  // regex-scan it for @font-face blocks instead of walking CSSOM rules.
+  doc.querySelectorAll("style").forEach(s => {
+    const cssText = s.textContent || "";
+    const fontFaceBlocks = cssText.match(/@font-face\s*\{[^}]*\}/gi) || [];
+    fontFaceBlocks.forEach(block => {
+      const familyMatch = block.match(/font-family\s*:\s*([^;]+);/i);
+      const srcMatch = block.match(/src\s*:\s*([^;]+);/i);
+      if (familyMatch || srcMatch) {
+        data.fonts.push({
+          family: familyMatch ? familyMatch[1].trim().replace(/^["']|["']$/g, "") : "",
+          src: srcMatch ? srcMatch[1].trim() : "",
+          type: "font-face",
+        });
+      }
+    });
   });
   data.fontCount = data.fonts.length;
 
