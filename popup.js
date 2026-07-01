@@ -306,6 +306,8 @@ async function grabProject() {
   setStatus("Extracting page data...", "grabbing");
   setProgress(10);
 
+  let legacyCaptureFailed = false;
+
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
@@ -464,6 +466,7 @@ async function grabProject() {
           } else {
             console.warn("[FreeMyGHL] Legacy crawl found no pages and single-page fallback failed; keeping builder-shell capture as-is.");
             setStatus("Could not capture legacy builder pages — showing raw fallback", "error");
+            legacyCaptureFailed = true;
           }
         }
       } else if (previewSrc) {
@@ -564,7 +567,9 @@ async function grabProject() {
     document.getElementById("btnGDPR").disabled = false;
     document.getElementById("btnScrub").disabled = false;
 
-    setStatus("Done! " + projectData.totalAssets + " assets captured", "done");
+    if (!legacyCaptureFailed) {
+      setStatus("Done! " + projectData.totalAssets + " assets captured", "done");
+    }
     saveSnapshot(projectData);
     setProgress(100);
   } catch (err) {
