@@ -447,6 +447,34 @@ async function grabProject() {
           parsed.pageUrl = tab.url;
           parsed.grabbedAt = new Date().toISOString();
           parsed._multiPage = legacyPages;
+
+          // ── Merge every page's per-page _assets (from content.js's
+          // grabProject response: {stylesheets,scripts,images,fonts}) into a
+          // single deduped _multiAssets object — mirroring crawler.js's
+          // mergeAssets() (same dedup keys per asset type) so downloadZip()'s
+          // existing _multiAssets-consuming merge logic works unchanged for
+          // legacy captures too. Can't call crawler.js's mergeAssets() directly:
+          // crawler.js only runs injected into a tab's MAIN world, not here.
+          const legacyDedupeKey = (item, listName) => {
+            if (listName === "images") return item.src;
+            if (listName === "fonts") return item.url || item.family;
+            return item.url || item.content;
+          };
+          const legacyMultiAssets = { stylesheets: [], scripts: [], images: [], fonts: [] };
+          legacyPages.forEach(page => {
+            const pageAssets = page._assets || {};
+            Object.keys(legacyMultiAssets).forEach(listName => {
+              const seen = new Set(legacyMultiAssets[listName].map(item => legacyDedupeKey(item, listName)));
+              (pageAssets[listName] || []).forEach(item => {
+                const key = legacyDedupeKey(item, listName);
+                if (key && seen.has(key)) return;
+                if (key) seen.add(key);
+                legacyMultiAssets[listName].push(item);
+              });
+            });
+          });
+          parsed._multiAssets = legacyMultiAssets;
+
           projectData = parsed;
         } else {
           // Single-page fallback — same pattern as the AI-Studio branch below:

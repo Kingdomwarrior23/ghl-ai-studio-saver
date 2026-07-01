@@ -37,6 +37,16 @@
   const allAssetUrls = new Set();
   (data.images || []).forEach(i => i.src && i.src.startsWith("http") && allAssetUrls.add(i.src));
   (data.stylesheets || []).forEach(s => s.url && allAssetUrls.add(s.url));
+  // Multi-page captures (AI Studio or legacy) stash a merged, deduped
+  // {stylesheets,scripts,images,fonts} object across ALL crawled pages in
+  // data._multiAssets (popup.js's grabProject(), both crawl branches).
+  // Without this, switching to page 2+ in Live Preview shows broken
+  // images/CSS for any asset the home page didn't itself use. Absent for
+  // single-page captures — union is skipped and behavior is unchanged.
+  if (data._multiAssets) {
+    (data._multiAssets.images || []).forEach(i => i.src && i.src.startsWith("http") && allAssetUrls.add(i.src));
+    (data._multiAssets.stylesheets || []).forEach(s => s.url && allAssetUrls.add(s.url));
+  }
   const urlToBlob = {};
   await Promise.all([...allAssetUrls].map(async url => { urlToBlob[url] = await assetToBlobUrl(url); }));
 
