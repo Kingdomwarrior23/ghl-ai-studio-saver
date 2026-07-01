@@ -42,11 +42,25 @@
 
   function rewriteHtml(html) {
     let out = html || "";
-    for (const [orig, blob] of Object.entries(urlToBlob)) {
+    // Sort by original URL length, descending, before substituting. If one
+    // asset URL is a strict substring/prefix of another (e.g. ".../logo.png"
+    // vs ".../logo.png?v=2"), replacing the shorter one first would corrupt
+    // the longer one's occurrence (leaves a broken concatenation like
+    // "<blob-url>?v=2"). Longer/more-specific URLs must be replaced first.
+    const entries = Object.entries(urlToBlob).sort((a, b) => b[0].length - a[0].length);
+    for (const [orig, blob] of entries) {
       out = out.split(orig).join(blob);
     }
     return out;
   }
+
+  // Release blob URLs when the tab unloads instead of leaking them for the
+  // tab's entire lifetime with no cleanup path.
+  window.addEventListener("beforeunload", () => {
+    Object.values(urlToBlob).forEach(url => {
+      try { URL.revokeObjectURL(url); } catch {}
+    });
+  });
 
   const select = document.getElementById("pageSelect");
   const frame = document.getElementById("previewFrame");

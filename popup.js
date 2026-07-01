@@ -853,7 +853,12 @@ async function buildBundle(onStatus) {
 // ── Live preview — open captured project in a tab, no manual server ──────
 async function livePreview() {
   if (!projectData) return;
-  await chrome.storage.local.set({ __fmghl_preview_data: projectData });
+  try {
+    await chrome.storage.local.set({ __fmghl_preview_data: projectData });
+  } catch (err) {
+    setStatus("Preview failed to save (storage quota exceeded?): " + err.message, "error");
+    return;
+  }
   chrome.tabs.create({ url: chrome.runtime.getURL("preview.html") });
 }
 
