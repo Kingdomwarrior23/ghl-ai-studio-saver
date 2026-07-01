@@ -46,13 +46,17 @@
   // SPA that crawler.js's client-side route driver can walk.
   function collectSameOriginRoutes() {
     const origin = window.location.origin;
-    const seen = new Set([window.location.pathname]);
+    // Normalize trailing slashes so "/pricing" and "/pricing/" aren't treated
+    // as two different routes — strip a single trailing slash except when the
+    // pathname IS just "/".
+    const normalizePath = (path) => (path.length > 1 ? path.replace(/\/$/, "") : path);
+    const seen = new Set([normalizePath(window.location.pathname)]);
     document.querySelectorAll("a[href]").forEach((a) => {
       try {
         const url = new URL(a.href, origin);
         if (url.origin !== origin) return;
         if (!url.pathname || url.pathname === "#") return;
-        seen.add(url.pathname);
+        seen.add(normalizePath(url.pathname));
       } catch {}
     });
     return [...seen].sort();

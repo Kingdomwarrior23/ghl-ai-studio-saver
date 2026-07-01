@@ -257,7 +257,10 @@ async function crawlLegacyPages(originUrl, routes) {
       tab = await chrome.tabs.create({ url: fullUrl, active: false });
 
       await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error("Page load timed out: " + fullUrl)), 15000);
+        const timeout = setTimeout(() => {
+          chrome.tabs.onUpdated.removeListener(listener);
+          reject(new Error("Page load timed out: " + fullUrl));
+        }, 15000);
         function listener(tabId, info) {
           if (tabId === tab.id && info.status === "complete") {
             clearTimeout(timeout);
@@ -403,14 +406,36 @@ async function grabProject() {
         setProgress(40);
 
         // Discover routes from the preview page itself (not the builder shell).
-        await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          files: ["shared-asset-collector.js", "content.js"],
+        // Resolve the preview iframe's specific frameId the same way the AI
+        // Studio branch below does — injecting into/messaging the top-level
+        // frame would only see the builder shell, not the same-origin iframe
+        // where the real routes live.
+        const legacyPreviewFrames = await new Promise(resolve => {
+          chrome.webNavigation.getAllFrames({ tabId: tab.id }, f => resolve(chrome.runtime.lastError ? [] : (f || [])));
         });
-        const routesResp = await new Promise(resolve => {
-          chrome.tabs.sendMessage(tab.id, { action: "collectRoutes" }, r => resolve(chrome.runtime.lastError ? null : r));
+        const legacyPreviewFrame = legacyPreviewFrames.find(f => {
+          if (!f.url) return false;
+          if (f.url === previewSrc) return true;
+          try { return new URL(f.url).origin === new URL(previewSrc).origin; } catch { return false; }
         });
-        const routes = routesResp?.success && routesResp.routes?.length ? routesResp.routes : ["/"];
+
+        let routes = ["/"];
+        if (legacyPreviewFrame) {
+          try {
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id, frameIds: [legacyPreviewFrame.frameId] },
+              files: ["shared-asset-collector.js", "content.js"],
+            });
+            const routesResp = await new Promise(resolve => {
+              chrome.tabs.sendMessage(tab.id, { action: "collectRoutes" }, { frameId: legacyPreviewFrame.frameId }, r => resolve(chrome.runtime.lastError ? null : r));
+            });
+            if (routesResp?.success && routesResp.routes?.length) routes = routesResp.routes;
+          } catch (e) {
+            console.warn("[FreeMyGHL] Route discovery in preview frame failed, defaulting to '/':", e.message);
+          }
+        } else {
+          console.warn("[FreeMyGHL] Could not resolve preview iframe frameId for route discovery; defaulting to '/'.");
+        }
 
         const legacyPages = await crawlLegacyPages(previewSrc, routes);
         if (legacyPages.length > 0) {
@@ -422,7 +447,24 @@ async function grabProject() {
           parsed._multiPage = legacyPages;
           projectData = parsed;
         } else {
-          console.warn("[FreeMyGHL] Legacy crawl found no pages; keeping builder-shell capture as-is.");
+          // Single-page fallback — same pattern as the AI-Studio branch below:
+          // fetch the preview page directly via background.js before giving up.
+          setStatus("Fetching site from preview frame...", "grabbing");
+          console.log("[GHL Saver] Legacy crawl found no pages; falling back to direct fetch:", previewSrc);
+          const legacyFetchResp = await new Promise(resolve =>
+            chrome.runtime.sendMessage({ action: "fetchUrl", url: previewSrc }, r =>
+              resolve(r || { success: false, error: "No response from background" })
+            )
+          );
+          if (legacyFetchResp?.success && legacyFetchResp.content) {
+            const parsed = parseHtmlToData(legacyFetchResp.content, previewSrc);
+            parsed.pageUrl = tab.url;
+            parsed.grabbedAt = new Date().toISOString();
+            projectData = parsed;
+          } else {
+            console.warn("[FreeMyGHL] Legacy crawl found no pages and single-page fallback failed; keeping builder-shell capture as-is.");
+            setStatus("Could not capture legacy builder pages — showing raw fallback", "error");
+          }
         }
       } else if (previewSrc) {
         setStatus("GHL AI Studio detected — crawling all pages...", "grabbing");
