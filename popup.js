@@ -327,23 +327,85 @@ async function grabProject() {
     // The Vibe preview iframe may be cross-origin and not injectable. We instead
     // find its src URL from the builder DOM, fetch the raw HTML via background.js
     // (which can bypass CORS), then parse it with DOMParser in the popup.
+    //
+    // ── AI Studio: multi-page crawl via preview iframe ────────────────────
+    // The builder shell wraps a cross-origin preview iframe at
+    // preview-{projectId}.vibepreview.com. We inject crawler.js directly into
+    // that iframe (not the builder shell) — it drives React Router via
+    // pushState and captures every route without a page reload. If the crawl
+    // finds zero pages, fall back to the original single-fetch behavior so
+    // nothing regresses.
     if (projectData.contentScore < 0) {
       const withIframe = allResponses.find(r => r.previewIframeUrl);
-      if (withIframe?.previewIframeUrl) {
-        setStatus("Fetching site from preview frame...", "grabbing");
-        console.log("[GHL Saver] Falling back to direct fetch:", withIframe.previewIframeUrl);
-        const fetchResp = await new Promise(resolve =>
-          chrome.runtime.sendMessage({ action: "fetchUrl", url: withIframe.previewIframeUrl }, r =>
-            resolve(r || { success: false, error: "No response from background" })
-          )
-        );
-        if (fetchResp?.success && fetchResp.content) {
-          const parsed = parseHtmlToData(fetchResp.content, withIframe.previewIframeUrl);
+      const previewSrc = withIframe?.previewIframeUrl || null;
+
+      if (previewSrc) {
+        setStatus("GHL AI Studio detected — crawling all pages...", "grabbing");
+        setProgress(40);
+
+        const previewFrames = await new Promise(resolve => {
+          chrome.webNavigation.getAllFrames({ tabId: tab.id }, f => resolve(chrome.runtime.lastError ? [] : (f || [])));
+        });
+        const previewFrame = previewFrames.find(f => {
+          if (!f.url) return false;
+          if (f.url === previewSrc) return true;
+          try { return new URL(f.url).origin === new URL(previewSrc).origin; } catch { return false; }
+        });
+
+        let crawlData = null;
+        if (previewFrame) {
+          try {
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id, frameIds: [previewFrame.frameId] },
+              world: "MAIN",
+              files: ["shared-asset-collector.js", "crawler.js"],
+            });
+            const waitForCrawlDone = async () => {
+              const deadline = Date.now() + 120000;
+              while (Date.now() < deadline) {
+                const probe = await chrome.scripting.executeScript({
+                  target: { tabId: tab.id, frameIds: [previewFrame.frameId] },
+                  world: "MAIN",
+                  func: () => window.__fmghlCrawlResult || null,
+                });
+                if (probe?.[0]?.result) return probe[0].result;
+                await new Promise(r => setTimeout(r, 500));
+              }
+              return null;
+            };
+            crawlData = await waitForCrawlDone();
+          } catch (e) {
+            console.warn("[FreeMyGHL] Crawler injection failed, falling back to single-page fetch:", e.message);
+          }
+        }
+
+        if (crawlData?.pages?.length > 0) {
+          setStatus(`Captured ${crawlData.pages.length} pages`, "grabbing");
+          const homePage = crawlData.pages.find(p => p.route === "/") || crawlData.pages[0];
+          const parsed = parseHtmlToData(homePage.html, previewSrc);
           parsed.pageUrl = tab.url;
           parsed.grabbedAt = new Date().toISOString();
+          parsed._multiPage = crawlData.pages;
+          parsed._multiAssets = crawlData.assets;
+          parsed._previewOrigin = (() => { try { return new URL(previewSrc).origin; } catch { return null; } })();
           projectData = parsed;
         } else {
-          console.warn("[GHL Saver] Direct fetch failed:", fetchResp?.error);
+          // Single-page fallback — same path as before this task existed.
+          setStatus("Fetching site from preview frame...", "grabbing");
+          console.log("[GHL Saver] Falling back to direct fetch:", previewSrc);
+          const fetchResp = await new Promise(resolve =>
+            chrome.runtime.sendMessage({ action: "fetchUrl", url: previewSrc }, r =>
+              resolve(r || { success: false, error: "No response from background" })
+            )
+          );
+          if (fetchResp?.success && fetchResp.content) {
+            const parsed = parseHtmlToData(fetchResp.content, previewSrc);
+            parsed.pageUrl = tab.url;
+            parsed.grabbedAt = new Date().toISOString();
+            projectData = parsed;
+          } else {
+            console.warn("[GHL Saver] Direct fetch failed:", fetchResp?.error);
+          }
         }
       } else {
         console.warn("[GHL Saver] Builder shell found but no preview iframe URL detected.");
@@ -658,14 +720,45 @@ async function downloadZip() {
     const root = zip.folder("ghl-project");
     let html = projectData.fullHtml || "";
 
+    // ── Multi-page crawl (AI Studio): merge every page's assets into the ──
+    // same stylesheets/scripts/images/fonts arrays the single-page path uses,
+    // so the fetch loops below download assets for ALL crawled pages, not
+    // just the home page. Additive only — untouched when _multiAssets absent.
+    let combinedStylesheets = projectData.stylesheets || [];
+    let combinedScripts = projectData.scripts || [];
+    let combinedImages = projectData.images || [];
+    let combinedFonts = projectData.fonts || [];
+    if (projectData._multiAssets) {
+      const dedupeKey = (item, listName) => {
+        if (listName === "images") return item.src;
+        if (listName === "fonts") return item.url || item.family;
+        return item.url || item.content;
+      };
+      const mergeList = (base, extra, listName) => {
+        const seen = new Set(base.map(item => dedupeKey(item, listName)));
+        const merged = base.slice();
+        (extra || []).forEach(item => {
+          const key = dedupeKey(item, listName);
+          if (key && seen.has(key)) return;
+          if (key) seen.add(key);
+          merged.push(item);
+        });
+        return merged;
+      };
+      combinedStylesheets = mergeList(combinedStylesheets, projectData._multiAssets.stylesheets, "stylesheets");
+      combinedScripts = mergeList(combinedScripts, projectData._multiAssets.scripts, "scripts");
+      combinedImages = mergeList(combinedImages, projectData._multiAssets.images, "images");
+      combinedFonts = mergeList(combinedFonts, projectData._multiAssets.fonts, "fonts");
+    }
+
     // ── Fetch external CSS ───────────────────────────────
     setStatus("Fetching CSS files...", "grabbing");
     setProgress(5);
     const cssDir = root.folder("css");
     const cssUrlMap = {}; // original url → local path
 
-    const externalCss = (projectData.stylesheets || []).filter(s => s.url && !s.url.startsWith("data:"));
-    const inlineCss = (projectData.stylesheets || []).filter(s => !s.url && s.content);
+    const externalCss = combinedStylesheets.filter(s => s.url && !s.url.startsWith("data:"));
+    const inlineCss = combinedStylesheets.filter(s => !s.url && s.content);
 
     inlineCss.forEach((s, i) => cssDir.file(`inline-${i}.css`, s.content));
 
@@ -684,10 +777,10 @@ async function downloadZip() {
     const jsUrlMap = {};
 
     // Filter out CSS URLs that ended up in scripts (common with Vite/bundlers)
-    const allScripts = (projectData.scripts || []).filter(s => s.url && !s.url.startsWith("data:"));
+    const allScripts = combinedScripts.filter(s => s.url && !s.url.startsWith("data:"));
     const cssFromScripts = allScripts.filter(s => s.url.split("?")[0].endsWith(".css"));
     const externalJs = allScripts.filter(s => !s.url.split("?")[0].endsWith(".css"));
-    const inlineJs = (projectData.scripts || []).filter(s => !s.url && s.content);
+    const inlineJs = combinedScripts.filter(s => !s.url && s.content);
 
     // Rescue any CSS URLs found in scripts array — add to cssDir
     await Promise.all(cssFromScripts.map(async (s, i) => {
@@ -713,7 +806,7 @@ async function downloadZip() {
     const imgDir = root.folder("images");
     const imgUrlMap = {};
 
-    const imageUrls = (projectData.images || [])
+    const imageUrls = combinedImages
       .filter(img => img.src && !img.src.startsWith("data:") && !img.src.startsWith("svg-"));
 
     await Promise.all(imageUrls.map(async (img, i) => {
@@ -767,13 +860,14 @@ async function downloadZip() {
     }
 
     // ── Fonts ────────────────────────────────────────────
-    if (projectData.fonts && projectData.fonts.length) {
+    const fontUrlMap = {}; // original font/google-fonts-css url → local path (for multi-page rewrite below)
+    if (combinedFonts && combinedFonts.length) {
       const fontDir = root.folder("fonts");
       const cssDir2 = root.folder("css");
 
       // Self-hosted fonts
       await Promise.all(
-        projectData.fonts
+        combinedFonts
           .filter(f => f.url && !f.url.includes("fonts.googleapis"))
           .map(async (f, i) => {
             const name = urlFilename(f.url, "font", i, ".woff2");
@@ -781,12 +875,13 @@ async function downloadZip() {
             if (result) {
               fontDir.file(name, result.base64, { base64: true });
               html = html.split(f.url).join(`fonts/${name}`);
+              fontUrlMap[f.url] = `fonts/${name}`;
             }
           })
       );
 
       // Google Fonts — fetch CSS, extract gstatic font URLs, download each
-      const gFontLinks2 = projectData.fonts.filter(f => f.url && f.url.includes("fonts.googleapis"));
+      const gFontLinks2 = combinedFonts.filter(f => f.url && f.url.includes("fonts.googleapis"));
       for (let i = 0; i < gFontLinks2.length; i++) {
         const fontCss = await fetchText(gFontLinks2[i].url);
         if (!fontCss) continue;
@@ -804,10 +899,49 @@ async function downloadZip() {
         const cssName = `google-fonts-${i}.css`;
         cssDir2.file(cssName, localFontCss);
         html = html.split(gFontLinks2[i].url).join(`css/${cssName}`);
+        fontUrlMap[gFontLinks2[i].url] = `css/${cssName}`;
       }
 
       // Re-save index.html with font paths rewritten
       root.file("index.html", html);
+    }
+
+    // ── Multi-page crawl (AI Studio): write one HTML file per crawled page ──
+    // Additive only — runs solely when _multiPage is present (i.e. the crawl
+    // in grabProject() found more than one route). Legacy single-page
+    // captures are completely unaffected since projectData._multiPage is
+    // undefined for them.
+    if (projectData._multiPage && projectData._multiPage.length > 1) {
+      setStatus(`Packaging ${projectData._multiPage.length} crawled pages...`, "grabbing");
+      const previewOrigin = projectData._previewOrigin || null;
+      const homeRoute = projectData._multiPage.find(p => p.route === "/") ? "/" :
+        (projectData._multiPage[0] && projectData._multiPage[0].route);
+
+      projectData._multiPage.forEach(page => {
+        if (page.route === homeRoute) return; // already written as index.html
+        let pageHtml = page.html || "";
+        if (previewOrigin) pageHtml = pageHtml.split(previewOrigin).join("");
+        // rewriteMap() (defined above) closes over the outer `html` var and mutates it,
+        // so rewrite pageHtml with a local, non-mutating equivalent instead:
+        const applyMap = (str, map) => {
+          Object.entries(map).forEach(([orig, local]) => {
+            str = str.split(orig).join(local);
+            try {
+              const rel = new URL(orig).pathname;
+              if (rel && rel !== "/" && str.includes(rel)) str = str.split(rel).join(local);
+            } catch {}
+          });
+          return str;
+        };
+        pageHtml = applyMap(pageHtml, cssUrlMap);
+        pageHtml = applyMap(pageHtml, jsUrlMap);
+        pageHtml = applyMap(pageHtml, imgUrlMap);
+        pageHtml = applyMap(pageHtml, fontUrlMap);
+
+        const slug = (page.slug || page.route.replace(/^\//, "").replace(/\//g, "-") || `page-${Date.now()}`);
+        const fileName = slug === "index" ? "index.html" : `${slug}.html`;
+        root.file(fileName, pageHtml);
+      });
     }
 
     // ── Meta / manifest ──────────────────────────────────
@@ -820,6 +954,7 @@ async function downloadZip() {
       jsFiles: Object.keys(jsUrlMap).length + inlineJs.length,
       imageFiles: Object.keys(imgUrlMap).length,
       schemaCount: (projectData.schemas || []).length,
+      pageCount: (projectData._multiPage && projectData._multiPage.length) || 1,
     }, null, 2));
 
     if (projectData.ghlStructure && projectData.ghlStructure.length > 0) {
