@@ -1228,19 +1228,33 @@ async function commitFilesViaGitDataApi(repo, branch, files, headers, commitMess
     ? (await fetch(`https://api.github.com/repos/${repo}/git/commits/${baseCommitSha}`, { headers }).then(r => r.json())).tree.sha
     : null;
 
-  // 2. Upload all blobs in parallel (independent objects, same as deployToGHPages)
+  // 2. Upload blobs in batches of ~6 concurrent requests (unlike deployToGHPages'
+  // unbounded Promise.all, this function is meant to handle 50-150+ file captures,
+  // so uploads are throttled to stay under GitHub's secondary rate limit detection,
+  // which flags high-concurrency bursts against write endpoints like /git/blobs).
+  // Note: all-or-nothing semantics — if any single blob upload fails, the whole
+  // push aborts here and no commit is created (no partial progress, unlike the
+  // old per-file Contents-API loop). This is an intentional tradeoff of the
+  // single-commit design, not an oversight.
   onProgress?.(`Uploading ${files.length} file blobs...`);
-  const treeEntries = await Promise.all(files.map(async f => {
-    const body = f.binary
-      ? JSON.stringify({ content: f.base64, encoding: "base64" })
-      : JSON.stringify({ content: f.content || "", encoding: "utf-8" });
-    const blobResp = await fetch(`https://api.github.com/repos/${repo}/git/blobs`, {
-      method: "POST", headers, body,
-    });
-    if (!blobResp.ok) { const e = await blobResp.json(); throw new Error(`Blob failed for ${f.path}: ${e.message}`); }
-    const { sha } = await blobResp.json();
-    return { path: f.path, mode: "100644", type: "blob", sha };
-  }));
+  const BLOB_BATCH_SIZE = 6;
+  const treeEntries = [];
+  for (let i = 0; i < files.length; i += BLOB_BATCH_SIZE) {
+    const batch = files.slice(i, i + BLOB_BATCH_SIZE);
+    const batchEntries = await Promise.all(batch.map(async f => {
+      const body = f.binary
+        ? JSON.stringify({ content: f.base64, encoding: "base64" })
+        : JSON.stringify({ content: f.content || "", encoding: "utf-8" });
+      const blobResp = await fetch(`https://api.github.com/repos/${repo}/git/blobs`, {
+        method: "POST", headers, body,
+      });
+      if (!blobResp.ok) { const e = await blobResp.json(); throw new Error(`Blob failed for ${f.path}: ${e.message}`); }
+      const { sha } = await blobResp.json();
+      return { path: f.path, mode: "100644", type: "blob", sha };
+    }));
+    treeEntries.push(...batchEntries);
+    onProgress?.(`Uploaded ${treeEntries.length}/${files.length} file blobs...`);
+  }
 
   // 3. Create a tree (base_tree layers this push on top of the branch's existing files)
   onProgress?.("Building tree...");
