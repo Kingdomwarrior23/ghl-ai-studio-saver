@@ -3,6 +3,38 @@
 
 let projectData = null;
 
+// ── Inline prompt replacement (prompt() freezes extension popups) ───────────
+function askUser(label, placeholder) {
+  return new Promise(resolve => {
+    const modal = document.getElementById("askModal");
+    const labelEl = document.getElementById("askModalLabel");
+    const input = document.getElementById("askModalInput");
+    const okBtn = document.getElementById("askModalOk");
+    const cancelBtn = document.getElementById("askModalCancel");
+
+    labelEl.textContent = label;
+    input.value = "";
+    input.placeholder = placeholder || "";
+    modal.style.display = "flex";
+    setTimeout(() => input.focus(), 50);
+
+    function done(val) {
+      modal.style.display = "none";
+      okBtn.removeEventListener("click", onOk);
+      cancelBtn.removeEventListener("click", onCancel);
+      input.removeEventListener("keydown", onKey);
+      resolve(val);
+    }
+    function onOk() { done(input.value.trim() || null); }
+    function onCancel() { done(null); }
+    function onKey(e) { if (e.key === "Enter") onOk(); if (e.key === "Escape") onCancel(); }
+
+    okBtn.addEventListener("click", onOk);
+    cancelBtn.addEventListener("click", onCancel);
+    input.addEventListener("keydown", onKey);
+  });
+}
+
 // ── Utility ──────────────────────────────────────────────
 function escHtml(str) {
   return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
@@ -651,8 +683,19 @@ async function downloadZip() {
     const jsDir = root.folder("js");
     const jsUrlMap = {};
 
-    const externalJs = (projectData.scripts || []).filter(s => s.url && !s.url.startsWith("data:"));
+    // Filter out CSS URLs that ended up in scripts (common with Vite/bundlers)
+    const allScripts = (projectData.scripts || []).filter(s => s.url && !s.url.startsWith("data:"));
+    const cssFromScripts = allScripts.filter(s => s.url.split("?")[0].endsWith(".css"));
+    const externalJs = allScripts.filter(s => !s.url.split("?")[0].endsWith(".css"));
     const inlineJs = (projectData.scripts || []).filter(s => !s.url && s.content);
+
+    // Rescue any CSS URLs found in scripts array — add to cssDir
+    await Promise.all(cssFromScripts.map(async (s, i) => {
+      const name = urlFilename(s.url, "style-x", i, ".css");
+      const content = await fetchText(s.url);
+      cssDir.file(name, content || `/* could not fetch: ${s.url} */`);
+      cssUrlMap[s.url] = `css/${name}`;
+    }));
 
     inlineJs.forEach((s, i) => jsDir.file(`inline-${i}.js`, s.content));
 
@@ -689,20 +732,23 @@ async function downloadZip() {
     // ── Rewrite HTML to use local paths ──────────────────
     setStatus("Building self-contained HTML...", "grabbing");
 
-    // Replace external stylesheet links with local refs
-    Object.entries(cssUrlMap).forEach(([orig, local]) => {
-      html = html.split(orig).join(local);
-    });
+    // Rewrite URLs → local paths. Try both the full absolute URL and the
+    // path-only form (e.g. /assets/foo.css) so Vite/relative-path sites work.
+    function rewriteMap(map) {
+      Object.entries(map).forEach(([orig, local]) => {
+        html = html.split(orig).join(local);
+        try {
+          const rel = new URL(orig).pathname;
+          if (rel && rel !== "/" && html.includes(rel)) {
+            html = html.split(rel).join(local);
+          }
+        } catch {}
+      });
+    }
 
-    // Replace external script srcs with local refs
-    Object.entries(jsUrlMap).forEach(([orig, local]) => {
-      html = html.split(orig).join(local);
-    });
-
-    // Replace image srcs with local refs
-    Object.entries(imgUrlMap).forEach(([orig, local]) => {
-      html = html.split(orig).join(local);
-    });
+    rewriteMap(cssUrlMap);
+    rewriteMap(jsUrlMap);
+    rewriteMap(imgUrlMap);
 
     root.file("index.html", html);
 
@@ -955,7 +1001,7 @@ async function pushToGitHub() {
   let { githubToken } = await chrome.storage.local.get(["githubToken"]);
 
   if (!githubToken) {
-    githubToken = prompt("Enter your GitHub Personal Access Token:");
+    githubToken = await askUser("Enter your GitHub Personal Access Token:", "ghp_...");
     if (!githubToken) return;
     await chrome.storage.local.set({ githubToken });
   }
@@ -1163,7 +1209,7 @@ async function deployToNetlify() {
   try {
     let { netlifyToken } = await chrome.storage.local.get(["netlifyToken"]);
     if (!netlifyToken) {
-      netlifyToken = prompt("Enter your Netlify Personal Access Token (app.netlify.com/user/applications/personal):");
+      netlifyToken = await askUser("Enter your Netlify Personal Access Token\n(app.netlify.com → User Settings → Applications)", "nfp_...");
       if (!netlifyToken) { btn.disabled = false; btn.textContent = "🚀 Netlify"; return; }
       await chrome.storage.local.set({ netlifyToken });
     }
@@ -1262,7 +1308,7 @@ async function deployToVercel() {
   try {
     let { vercelToken } = await chrome.storage.local.get(["vercelToken"]);
     if (!vercelToken) {
-      vercelToken = prompt("Enter your Vercel API token (vercel.com/account/tokens):");
+      vercelToken = await askUser("Enter your Vercel API token\n(vercel.com/account/tokens)", "...");
       if (!vercelToken) { btn.disabled = false; btn.textContent = "▲ Vercel"; return; }
       await chrome.storage.local.set({ vercelToken });
     }
@@ -1357,13 +1403,13 @@ async function deployToGHPages() {
     let { githubToken, githubRepo } = await chrome.storage.local.get(["githubToken", "githubRepo"]);
 
     if (!githubToken) {
-      githubToken = prompt("Enter your GitHub Personal Access Token (needs repo + pages scope):");
+      githubToken = await askUser("Enter your GitHub Personal Access Token\n(needs repo + pages scope)", "ghp_...");
       if (!githubToken) { btn.disabled = false; btn.textContent = "📄 GH Pages"; return; }
       await chrome.storage.local.set({ githubToken });
     }
 
     if (!githubRepo) {
-      githubRepo = prompt("Enter repo to deploy to (e.g. username/my-site):");
+      githubRepo = await askUser("Enter repo to deploy to:", "username/my-site");
       if (!githubRepo) { btn.disabled = false; btn.textContent = "📄 GH Pages"; return; }
       await chrome.storage.local.set({ githubRepo });
     }
@@ -1694,7 +1740,7 @@ function showSourcePanel(fileCount) {
 async function getVercelToken() {
   let { vercelToken } = await chrome.storage.local.get(["vercelToken"]);
   if (!vercelToken) {
-    vercelToken = prompt("Enter your Vercel API token (vercel.com/account/tokens):");
+    vercelToken = await askUser("Enter your Vercel API token\n(vercel.com/account/tokens)", "...");
     if (!vercelToken) return null;
     await chrome.storage.local.set({ vercelToken });
   }
@@ -1704,7 +1750,7 @@ async function getVercelToken() {
 async function getGitHubToken() {
   let { githubToken } = await chrome.storage.local.get(["githubToken"]);
   if (!githubToken) {
-    githubToken = prompt("Enter your GitHub Personal Access Token (needs repo scope):");
+    githubToken = await askUser("Enter your GitHub Personal Access Token\n(needs repo scope)", "ghp_...");
     if (!githubToken) return null;
     await chrome.storage.local.set({ githubToken });
   }
@@ -2218,16 +2264,16 @@ async function deployToCloudflare() {
     let { cfToken, cfAccountId } = await chrome.storage.local.get(["cfToken", "cfAccountId"]);
 
     if (!cfToken) {
-      cfToken = prompt("Cloudflare API Token (Pages:Edit permission):");
+      cfToken = await askUser("Cloudflare API Token\n(Pages:Edit permission — dash.cloudflare.com/profile/api-tokens)", "...");
       if (!cfToken) { btn.disabled = false; btn.textContent = "☁️ CF Pages"; return; }
     }
     if (!cfAccountId) {
-      cfAccountId = prompt("Cloudflare Account ID (right sidebar of dash.cloudflare.com):");
+      cfAccountId = await askUser("Cloudflare Account ID\n(right sidebar on dash.cloudflare.com)", "...");
       if (!cfAccountId) { btn.disabled = false; btn.textContent = "☁️ CF Pages"; return; }
     }
     // Project name derived fresh per-deploy from the grabbed page URL — never locked in storage
     const domain = (() => { try { return new URL(projectData.pageUrl).hostname.replace(/\./g, "-"); } catch { return "ghl-site"; } })();
-    let cfProject = prompt("Project name (new = creates it, existing = redeploys):", domain.substring(0, 28) + "-" + Date.now().toString().slice(-5));
+    let cfProject = await askUser("Project name (new = creates it, existing = redeploys):", domain.substring(0, 28) + "-" + Date.now().toString().slice(-5));
     if (!cfProject) { btn.disabled = false; btn.textContent = "☁️ CF Pages"; return; }
     cfProject = cfProject.toLowerCase().replace(/[^a-z0-9-]/g, "-").substring(0, 58);
     // Save credentials only (not project name — each site gets its own)
