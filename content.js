@@ -144,114 +144,17 @@
     const viewport = doc.querySelector('meta[name="viewport"]');
     data.metaTags.viewport = viewport ? viewport.content : null;
 
-    // ── 4. Stylesheets ───────────────────────────────────
-    data.stylesheets = [];
-
-    // Inline <style> tags
-    doc.querySelectorAll("style").forEach((s) => {
-      if (s.textContent.trim()) {
-        data.stylesheets.push({ url: null, content: s.textContent, type: "inline" });
-      }
-    });
-
-    // External stylesheets via styleSheets API
-    for (const sheet of doc.styleSheets) {
-      try {
-        const rules = Array.from(sheet.cssRules || [])
-          .map((r) => r.cssText)
-          .join("\n");
-        if (rules.trim()) {
-          data.stylesheets.push({ url: sheet.href || null, content: rules, type: "external" });
-        }
-      } catch {
-        if (sheet.href) {
-          data.stylesheets.push({ url: sheet.href, content: null, type: "cross-origin" });
-        }
-      }
-    }
-
-    // <link rel="stylesheet"> URLs
-    doc.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
-      if (link.href && !data.stylesheets.some((s) => s.url === link.href)) {
-        data.stylesheets.push({ url: link.href, content: null, type: "external-url" });
-      }
-    });
+    // ── 4-7. Assets (stylesheets, scripts, images, fonts) ────
+    // Delegated to shared-asset-collector.js so content.js and crawler.js
+    // never diverge on what counts as "an asset" again.
+    const assets = collectPageAssets(doc);
+    data.stylesheets = assets.stylesheets;
     data.cssCount = data.stylesheets.length;
-
-    // ── 5. JavaScript ────────────────────────────────────
-    data.scripts = [];
-    doc.querySelectorAll("script").forEach((s) => {
-      if (s.type === "application/ld+json") return;
-      if (s.src) {
-        if (!data.scripts.some((x) => x.url === s.src)) {
-          data.scripts.push({ url: s.src, content: null, type: "external" });
-        }
-      } else if (s.textContent.trim()) {
-        data.scripts.push({ url: null, content: s.textContent, type: "inline" });
-      }
-    });
+    data.scripts = assets.scripts;
     data.jsCount = data.scripts.length;
-
-    // ── 6. Images ────────────────────────────────────────
-    data.images = [];
-    const seenImgSrcs = new Set();
-
-    doc.querySelectorAll("img").forEach((img) => {
-      const src = img.src || img.dataset.src || img.getAttribute("data-lazy-src") || img.getAttribute("data-src") || "";
-      if (src && !seenImgSrcs.has(src)) {
-        seenImgSrcs.add(src);
-        data.images.push({
-          src: src,
-          alt: img.alt || "",
-          width: img.naturalWidth || img.width || null,
-          height: img.naturalHeight || img.height || null,
-          loading: img.loading || "eager",
-        });
-      }
-    });
-
-    // Background images
-    doc.querySelectorAll("*").forEach((el) => {
-      try {
-        const bg = getComputedStyle(el).backgroundImage;
-        if (bg && bg !== "none" && bg.includes("url(")) {
-          const match = bg.match(/url\(["']?([^"')]+)["']?\)/);
-          if (match && match[1] && !seenImgSrcs.has(match[1])) {
-            seenImgSrcs.add(match[1]);
-            data.images.push({ src: match[1], alt: "background-image", width: null, height: null, loading: "eager" });
-          }
-        }
-      } catch {}
-    });
-
-    // SVGs
-    doc.querySelectorAll("svg").forEach((svg, i) => {
-      const key = "svg-" + i;
-      if (!seenImgSrcs.has(key)) {
-        seenImgSrcs.add(key);
-        data.images.push({ src: key, alt: svg.getAttribute("aria-label") || "svg", width: null, height: null, svgContent: svg.outerHTML });
-      }
-    });
+    data.images = assets.images;
     data.imageCount = data.images.length;
-
-    // ── 7. Fonts ─────────────────────────────────────────
-    data.fonts = [];
-    doc.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
-      if (link.href && (link.href.includes("fonts.googleapis") || link.href.includes("font"))) {
-        data.fonts.push({ url: link.href, type: "google-fonts" });
-      }
-    });
-    for (const sheet of doc.styleSheets) {
-      try {
-        for (const rule of sheet.cssRules || []) {
-          if (rule.type === CSSRule.FONT_FACE_RULE) {
-            const src = rule.style.getPropertyValue("src");
-            const family = rule.style.getPropertyValue("font-family");
-            data.fonts.push({ family, src, type: "font-face" });
-          }
-        }
-      } catch {}
-    }
+    data.fonts = assets.fonts;
     data.fontCount = data.fonts.length;
 
     // ── 8. GHL Section Structure ─────────────────────────
