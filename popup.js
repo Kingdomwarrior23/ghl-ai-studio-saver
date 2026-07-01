@@ -1203,7 +1203,7 @@ Upload all files keeping the folder structure intact. Point your domain to the f
 ${(projectData.schemas || []).map(s => `- @${s.type}`).join("\n") || "None found"}
 
 ---
-Exported with [Keep My GHL](https://ownmyghl.ignitiv.io) — Own your GHL work forever.
+Exported with [FreeMyGHL](https://freemyghl.com) — Own your GHL work forever.
 `);
 
     setProgress(90);
