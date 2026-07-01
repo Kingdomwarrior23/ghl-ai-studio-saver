@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Privacy Policy — Keep My GHL</title>
-<meta name="description" content="Keep My GHL privacy policy. We don't collect, store, or transmit your data. Everything stays on your device.">
-<link rel="canonical" href="https://ownmyghl.ignitiv.io/privacy">
+<title>Privacy Policy — FreeMyGHL</title>
+<meta name="description" content="FreeMyGHL privacy policy. We don't collect, store, or transmit your data. Everything stays on your device.">
+<link rel="canonical" href="https://freemyghl.com/privacy">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -103,12 +103,15 @@ nav {
 .logo-glyph {
   width: 30px;
   height: 30px;
-  background: linear-gradient(135deg, #1e3a8a 0%, var(--blue) 100%);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 18px var(--blue-glow);
+}
+.logo-glyph img {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
 }
 
 .nav-links {
@@ -430,12 +433,9 @@ footer {
   <div class="container nav-inner">
     <a href="/" class="nav-logo">
       <div class="logo-glyph">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <rect x="3" y="7" width="10" height="8" rx="1.5" stroke="white" stroke-width="1.3"/>
-          <path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="white" stroke-width="1.3" stroke-linecap="round"/>
-        </svg>
+        <img src="icons/icon48.png" alt="FreeMyGHL">
       </div>
-      Keep My GHL
+      FreeMyGHL
     </a>
     <div class="nav-links">
       <a href="/#how">How it works</a>
@@ -482,12 +482,12 @@ footer {
       <!-- TL;DR callout -->
       <div class="callout" id="tldr">
         <div class="callout-label">TL;DR</div>
-        <p>Keep My GHL does not collect, store, or transmit any of your personal data or page content to any server. Everything stays on your device. The only outbound connections are ones <em>you</em> initiate — directly to GitHub, Netlify, Vercel, or Cloudflare using your own credentials.</p>
+        <p>FreeMyGHL does not collect, store, or transmit any of your personal data or page content to any server. Everything stays on your device. The only outbound connections are ones <em>you</em> initiate — directly to GitHub, Netlify, Vercel, or Cloudflare using your own credentials.</p>
       </div>
 
       <section id="no-collection">
         <h2>What we don't collect</h2>
-        <p>Keep My GHL does not collect:</p>
+        <p>FreeMyGHL does not collect:</p>
         <ul>
           <li>Your name, email, or any personal identifiers</li>
           <li>The content of pages you export</li>
@@ -504,16 +504,16 @@ footer {
         <p>The extension uses Chrome's local <code>storage</code> API solely to save your GitHub Personal Access Token if you choose to use the GitHub push feature. This token is:</p>
         <ul>
           <li>Stored only in your browser's local extension storage</li>
-          <li>Never transmitted to IgnitivIO, our servers, or any third party</li>
+          <li>Never transmitted to FreeMyGHL, our servers, or any third party</li>
           <li>Sent directly from your browser to GitHub's API only when you click "Push to GitHub"</li>
-          <li>Removable at any time via Chrome → Extensions → Keep My GHL → Clear data</li>
+          <li>Removable at any time via Chrome → Extensions → FreeMyGHL → Clear data</li>
         </ul>
         <p>Exported project files (HTML, CSS, JS, images) are saved directly to your local Downloads folder via the Chrome downloads API. They never pass through our servers.</p>
       </section>
 
       <section id="permissions">
         <h2>Permissions explained</h2>
-        <p>Chrome requires extensions to declare every permission they use. Here is exactly why Keep My GHL requests each one:</p>
+        <p>Chrome requires extensions to declare every permission they use. Here is exactly why FreeMyGHL requests each one:</p>
 
         <table class="perm-table">
           <thead>
@@ -561,17 +561,17 @@ footer {
 
       <section id="third-party">
         <h2>Third-party services</h2>
-        <p><strong>GitHub.</strong> When you use the GitHub push feature, your exported files are sent directly from your browser to the GitHub API (<a href="https://api.github.com" target="_blank" rel="noopener">api.github.com</a>) using your own Personal Access Token. IgnitivIO has no access to your GitHub account or repositories. GitHub's privacy policy applies: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">github.com/privacy</a>.</p>
-        <p><strong>Netlify.</strong> When you use the Netlify deploy feature, files are sent directly from your browser to Netlify's API using your credentials. IgnitivIO has no access to your Netlify account. Netlify's privacy policy applies: <a href="https://www.netlify.com/privacy/" target="_blank" rel="noopener">netlify.com/privacy</a>.</p>
-        <p><strong>Vercel.</strong> When you use the Vercel deploy feature, files are sent directly from your browser to Vercel's API using your credentials. IgnitivIO has no access to your Vercel account. Vercel's privacy policy applies: <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener">vercel.com/legal/privacy-policy</a>.</p>
+        <p><strong>GitHub.</strong> When you use the GitHub push feature, your exported files are sent directly from your browser to the GitHub API (<a href="https://api.github.com" target="_blank" rel="noopener">api.github.com</a>) using your own Personal Access Token. FreeMyGHL has no access to your GitHub account or repositories. GitHub's privacy policy applies: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">github.com/privacy</a>.</p>
+        <p><strong>Netlify.</strong> When you use the Netlify deploy feature, files are sent directly from your browser to Netlify's API using your credentials. FreeMyGHL has no access to your Netlify account. Netlify's privacy policy applies: <a href="https://www.netlify.com/privacy/" target="_blank" rel="noopener">netlify.com/privacy</a>.</p>
+        <p><strong>Vercel.</strong> When you use the Vercel deploy feature, files are sent directly from your browser to Vercel's API using your credentials. FreeMyGHL has no access to your Vercel account. Vercel's privacy policy applies: <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener">vercel.com/legal/privacy-policy</a>.</p>
         <p><strong>GitHub Pages.</strong> Deployments to GitHub Pages go through the GitHub API described above. The same token and privacy terms apply.</p>
-        <p><strong>Cloudflare Pages.</strong> When you use the Cloudflare Pages deploy feature, your exported files are sent directly from your browser to Cloudflare's API (<a href="https://api.cloudflare.com" target="_blank" rel="noopener">api.cloudflare.com</a>) using your own API token and Account ID. Your Cloudflare API token is stored locally in your browser's extension storage — it is never sent to IgnitivIO. Cloudflare's privacy policy applies: <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">cloudflare.com/privacypolicy</a>.</p>
+        <p><strong>Cloudflare Pages.</strong> When you use the Cloudflare Pages deploy feature, your exported files are sent directly from your browser to Cloudflare's API (<a href="https://api.cloudflare.com" target="_blank" rel="noopener">api.cloudflare.com</a>) using your own API token and Account ID. Your Cloudflare API token is stored locally in your browser's extension storage — it is never sent to FreeMyGHL. Cloudflare's privacy policy applies: <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">cloudflare.com/privacypolicy</a>.</p>
         <p>No other third-party services are contacted by the extension.</p>
       </section>
 
       <section id="children">
         <h2>Children's privacy</h2>
-        <p>Keep My GHL is a professional tool for GoHighLevel agency users, web designers, and developers, and is not directed at children under 13. We do not knowingly collect any information from children.</p>
+        <p>FreeMyGHL is a professional tool for GoHighLevel agency users, web designers, and developers, and is not directed at children under 13. We do not knowingly collect any information from children.</p>
       </section>
 
       <section id="changes">
@@ -581,7 +581,7 @@ footer {
 
       <section id="contact">
         <h2>Contact</h2>
-        <p>Questions about this policy? Email <a href="mailto:hello@ignitiv.io">hello@ignitiv.io</a> or visit <a href="https://ownmyghl.ignitiv.io">ownmyghl.ignitiv.io</a>. We respond same day.</p>
+        <p>Questions about this policy? Email <a href="mailto:hello@freemyghl.com">hello@freemyghl.com</a> or visit <a href="https://freemyghl.com">freemyghl.com</a>. We respond same day.</p>
       </section>
 
     </div><!-- /prose -->
@@ -592,10 +592,10 @@ footer {
 <footer>
   <div class="container footer-inner">
     <div class="footer-copy">
-      &copy; 2026 Keep My GHL &nbsp;·&nbsp; Built by <a href="https://ignitiv.io">IgnitivIO</a>
+      &copy; 2026 FreeMyGHL
     </div>
     <div class="footer-links">
-      <a href="mailto:hello@ignitiv.io">Support</a>
+      <a href="mailto:hello@freemyghl.com">Support</a>
       <a href="/privacy">Privacy</a>
       <a href="/">Home</a>
     </div>

@@ -1,4 +1,4 @@
-// GHL Project Saver — popup.js
+// FreeMyGHL — popup.js
 // Main orchestrator: injects content script, collects data, packages ZIP
 
 let projectData = null;
@@ -325,7 +325,7 @@ async function grabProject() {
 
     // Filter to frames we can actually inject into
     const injectable = frames.filter(f => f.url && !f.url.startsWith("chrome://") && !f.url.startsWith("chrome-extension://"));
-    console.log(`[GHL Saver] Found ${injectable.length} injectable frames:`, injectable.map(f => f.url?.substring(0, 80)));
+    console.log(`[FreeMyGHL] Found ${injectable.length} injectable frames:`, injectable.map(f => f.url?.substring(0, 80)));
 
     setProgress(20);
 
@@ -358,7 +358,7 @@ async function grabProject() {
           allResponses.push(resp.data);
         }
       } catch (e) {
-        console.log(`[GHL Saver] Frame ${frame.url?.substring(0, 60)} failed:`, e.message);
+        console.log(`[FreeMyGHL] Frame ${frame.url?.substring(0, 60)} failed:`, e.message);
       }
       setProgress(20 + Math.round((i / injectable.length) * 50));
     }
@@ -377,7 +377,7 @@ async function grabProject() {
     projectData.grabbedAt = new Date().toISOString();
 
     // Log all frames we found (for debugging)
-    console.log(`[GHL Saver] Got ${allResponses.length} frame(s). Selected: ${projectData.frameSource} (score: ${projectData.contentScore})`);
+    console.log(`[FreeMyGHL] Got ${allResponses.length} frame(s). Selected: ${projectData.frameSource} (score: ${projectData.contentScore})`);
     allResponses.forEach((r, i) => {
       console.log(`  Frame ${i}: ${r.frameSource} | score=${r.contentScore} | html=${r.fullHtml?.length} | assets=${r.totalAssets}`);
     });
@@ -480,7 +480,7 @@ async function grabProject() {
           // Single-page fallback — same pattern as the AI-Studio branch below:
           // fetch the preview page directly via background.js before giving up.
           setStatus("Fetching site from preview frame...", "grabbing");
-          console.log("[GHL Saver] Legacy crawl found no pages; falling back to direct fetch:", previewSrc);
+          console.log("[FreeMyGHL] Legacy crawl found no pages; falling back to direct fetch:", previewSrc);
           const legacyFetchResp = await new Promise(resolve =>
             chrome.runtime.sendMessage({ action: "fetchUrl", url: previewSrc }, r =>
               resolve(r || { success: false, error: "No response from background" })
@@ -559,7 +559,7 @@ async function grabProject() {
         } else {
           // Single-page fallback — same path as before this task existed.
           setStatus("Fetching site from preview frame...", "grabbing");
-          console.log("[GHL Saver] Falling back to direct fetch:", previewSrc);
+          console.log("[FreeMyGHL] Falling back to direct fetch:", previewSrc);
           const fetchResp = await new Promise(resolve =>
             chrome.runtime.sendMessage({ action: "fetchUrl", url: previewSrc }, r =>
               resolve(r || { success: false, error: "No response from background" })
@@ -571,11 +571,11 @@ async function grabProject() {
             parsed.grabbedAt = new Date().toISOString();
             projectData = parsed;
           } else {
-            console.warn("[GHL Saver] Direct fetch failed:", fetchResp?.error);
+            console.warn("[FreeMyGHL] Direct fetch failed:", fetchResp?.error);
           }
         }
       } else {
-        console.warn("[GHL Saver] Builder shell found but no preview iframe URL detected.");
+        console.warn("[FreeMyGHL] Builder shell found but no preview iframe URL detected.");
       }
     }
 
@@ -603,7 +603,7 @@ async function grabProject() {
     setProgress(100);
   } catch (err) {
     setStatus("Error: " + err.message, "error");
-    console.error("GHL Saver error:", err);
+    console.error("FreeMyGHL error:", err);
   } finally {
     btn.disabled = false;
     btn.textContent = "📥 Grab Full Project";
@@ -1221,7 +1221,7 @@ Exported with [FreeMyGHL](https://freemyghl.com) — Own your GHL work forever.
 
   } catch (err) {
     setStatus("ZIP error: " + err.message, "error");
-    console.error("GHL Saver ZIP error:", err);
+    console.error("FreeMyGHL ZIP error:", err);
   } finally {
     btn.disabled = false;
     btn.textContent = "💾 Download ZIP";
@@ -1457,7 +1457,7 @@ async function doPush(githubToken, repo) {
         headers,
         body: JSON.stringify({
           name: repo.split("/").pop(),
-          description: `GHL Saver export — ${projectData.pageTitle || repo}`,
+          description: `FreeMyGHL export — ${projectData.pageTitle || repo}`,
           private: false,
           auto_init: true,
         }),
@@ -1504,7 +1504,7 @@ async function doPush(githubToken, repo) {
 
   } catch (err) {
     setStatus("GitHub error: " + err.message, "error");
-    console.error("GHL Saver GitHub error:", err);
+    console.error("FreeMyGHL GitHub error:", err);
   } finally {
     btn.disabled = false;
     btn.textContent = "🐙 Push to GitHub";
@@ -1572,7 +1572,7 @@ async function previewSchemas() {
     setStatus(allSchemas.length + " schema(s) found", allSchemas.length > 0 ? "done" : "error");
   } catch (err) {
     setStatus("Schema error: " + err.message, "error");
-    console.error("GHL Saver schema error:", err);
+    console.error("FreeMyGHL schema error:", err);
   } finally {
     btn.disabled = false;
     btn.textContent = "🔍 Preview Schemas Only";
@@ -1671,7 +1671,7 @@ async function deployToNetlify() {
 
   } catch (err) {
     setStatus("Netlify failed: " + err.message, "error");
-    console.error("[Keep My GHL] Netlify error:", err.message);
+    console.error("[FreeMyGHL] Netlify error:", err.message);
   } finally {
     btn.disabled = false;
     btn.textContent = "🚀 Netlify";
@@ -1763,7 +1763,7 @@ async function deployToVercel() {
 
   } catch (err) {
     setStatus("Vercel deploy failed: " + err.message, "error");
-    console.error("[Keep My GHL] Vercel error:", err.message);
+    console.error("[FreeMyGHL] Vercel error:", err.message);
   } finally {
     btn.disabled = false;
     btn.textContent = "▲ Vercel";
@@ -1835,7 +1835,7 @@ async function deployToGHPages() {
     // Create commit (orphan — no parent needed for gh-pages)
     const commitResp = await fetch(`https://api.github.com/repos/${githubRepo}/git/commits`, {
       method: "POST", headers,
-      body: JSON.stringify({ message: "GHL Saver: deploy to GitHub Pages", tree: treeSha }),
+      body: JSON.stringify({ message: "FreeMyGHL: deploy to GitHub Pages", tree: treeSha }),
     });
     if (!commitResp.ok) { const e = await commitResp.json(); throw new Error(e.message); }
     const newSha = (await commitResp.json()).sha;
@@ -1871,7 +1871,7 @@ async function deployToGHPages() {
 
   } catch (err) {
     setStatus("GH Pages failed: " + err.message, "error");
-    console.error("[Keep My GHL] GH Pages error:", err.message);
+    console.error("[FreeMyGHL] GH Pages error:", err.message);
   } finally {
     btn.disabled = false;
     btn.textContent = "📄 GH Pages";
@@ -2103,7 +2103,7 @@ npx vercel
 
   } catch (err) {
     setStatus("Source export error: " + err.message, "error");
-    console.error("[Keep My GHL] Source export error:", err);
+    console.error("[FreeMyGHL] Source export error:", err);
   } finally {
     btn.disabled = false;
     btn.textContent = "📦 Export Source (Dev)";
@@ -2505,7 +2505,7 @@ function extractStudioFiles() {
           return resolve({ files, projectId, method: "WebContainers FS" });
         }
       } catch (e) {
-        console.log("[Keep My GHL] WebContainers method failed:", e.message);
+        console.log("[FreeMyGHL] WebContainers method failed:", e.message);
       }
     }
 
@@ -2603,7 +2603,7 @@ function extractStudioFiles() {
         db.close();
       }
     } catch (e) {
-      console.log("[Keep My GHL] IndexedDB scan failed:", e.message);
+      console.log("[FreeMyGHL] IndexedDB scan failed:", e.message);
     }
 
     // ── Method 4: Scan window globals for file maps ────────
@@ -2728,7 +2728,7 @@ async function deployToCloudflare() {
 
   } catch (err) {
     setStatus("Cloudflare failed: " + err.message, "error");
-    console.error("[Keep My GHL] Cloudflare error:", err);
+    console.error("[FreeMyGHL] Cloudflare error:", err);
   } finally {
     btn.disabled = false;
     btn.textContent = "☁️ CF Pages";
@@ -3185,7 +3185,7 @@ async function crawlFunnel() {
 
   } catch (err) {
     setStatus("Crawl failed: " + err.message, "error");
-    console.error("[Keep My GHL] Crawl error:", err);
+    console.error("[FreeMyGHL] Crawl error:", err);
   } finally {
     btn.disabled = false;
     btn.textContent = "🕸️ Crawl Entire Funnel";
@@ -3240,6 +3240,8 @@ function initSectionToggles() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  document.getElementById("versionBadge").textContent = "v" + chrome.runtime.getManifest().version;
+
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     document.getElementById("currentUrl").textContent = tab.url;

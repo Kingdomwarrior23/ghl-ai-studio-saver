@@ -1,4 +1,4 @@
-// GHL Project Saver — content.js
+// FreeMyGHL — content.js
 // Runs in BOTH the main GHL page AND the vibe iframe (via all_frames).
 // When inside the iframe, it captures the actual page content.
 // When in the main frame, it captures whatever is accessible.
@@ -16,7 +16,7 @@
     ? `iframe (${window.location.hostname})`
     : "main frame";
 
-  console.log(`[GHL Saver] Content script running in: ${frameInfo}`);
+  console.log(`[FreeMyGHL] Content script running in: ${frameInfo}`);
 
   const handler = (msg, sender, sendResponse) => {
     if (msg.action === "grabProject") {
@@ -116,7 +116,7 @@
       });
       data.previewIframeUrl = previewFrame ? previewFrame.src : null;
       if (data.previewIframeUrl) {
-        console.log("[GHL Saver] Builder shell found preview iframe:", data.previewIframeUrl);
+        console.log("[FreeMyGHL] Builder shell found preview iframe:", data.previewIframeUrl);
       }
     }
 

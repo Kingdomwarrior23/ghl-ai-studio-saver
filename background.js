@@ -1,4 +1,4 @@
-// GHL Project Saver — background.js
+// FreeMyGHL — background.js
 // Service worker: cross-origin fetches, downloads, auto-backup alarms
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -99,7 +99,7 @@ chrome.alarms.onAlarm.addListener(async alarm => {
     if (snapshots.length > 25) snapshots.splice(25);
     await chrome.storage.local.set({ snapshots });
   } catch (e) {
-    console.log("[Keep My GHL] Auto-backup failed:", e.message);
+    console.log("[FreeMyGHL] Auto-backup failed:", e.message);
   }
 });
 
