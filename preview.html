@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>FreeMyGHL — Live Preview</title>
+</head>
+<body style="margin:0">
+<select id="pageSelect" style="position:fixed;top:8px;right:8px;z-index:999999"></select>
+<!-- sandbox is required, not optional: the extension page's own CSP
+     (script-src 'self') would otherwise block inline <script> tags in the
+     CAPTURED site's HTML from running via srcdoc. A sandboxed iframe gets an
+     opaque origin governed only by its sandbox flags, not the parent's CSP —
+     this is what lets JS-heavy captures (Lovable/Bolt/v0/React SPA exports)
+     actually render interactively instead of showing a dead static page. -->
+<iframe id="previewFrame" sandbox="allow-scripts allow-forms allow-popups" style="width:100%;height:100vh;border:0"></iframe>
+<script src="preview.js"></script>
+</body>
+</html>

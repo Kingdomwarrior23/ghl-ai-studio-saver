@@ -556,6 +556,7 @@ async function grabProject() {
     showSchemas(projectData.schemas);
 
     document.getElementById("btnDownload").disabled = false;
+    document.getElementById("btnPreview").disabled = false;
     document.getElementById("btnSchemas").disabled = false;
     document.getElementById("btnGitHub").disabled = false;
     document.getElementById("btnNetlify").disabled = false;
@@ -847,6 +848,13 @@ async function buildBundle(onStatus) {
   }, null, 2) });
 
   return { html, files };
+}
+
+// ── Live preview — open captured project in a tab, no manual server ──────
+async function livePreview() {
+  if (!projectData) return;
+  await chrome.storage.local.set({ __fmghl_preview_data: projectData });
+  chrome.tabs.create({ url: chrome.runtime.getURL("preview.html") });
 }
 
 // ── Build and download ZIP ───────────────────────────────
@@ -2704,6 +2712,7 @@ async function restoreSnapshot(id) {
   projectData = parsed;
 
   document.getElementById("btnDownload").disabled = false;
+  document.getElementById("btnPreview").disabled = false;
   document.getElementById("btnGitHub").disabled = false;
   document.getElementById("btnNetlify").disabled = false;
   document.getElementById("btnVercel").disabled = false;
@@ -3140,6 +3149,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document.getElementById("btnGrab").addEventListener("click", grabProject);
   document.getElementById("btnDownload").addEventListener("click", downloadZip);
+  document.getElementById("btnPreview").addEventListener("click", livePreview);
   document.getElementById("btnGitHub").addEventListener("click", pushToGitHub);
   document.getElementById("btnNetlify").addEventListener("click", deployToNetlify);
   document.getElementById("btnVercel").addEventListener("click", deployToVercel);
